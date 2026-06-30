@@ -134,6 +134,17 @@ def write_images(images, path):
 
 
 def write_video(images, path, fps=10):
+    
+    # wx
+    import os
+    import shutil
+    import mediapy
+    pcd_bin = "/media/hwx/anaconda3/envs/pcd/bin"
+    if shutil.which("ffmpeg") is None:
+        os.environ["PATH"] = pcd_bin + os.pathsep + os.environ.get("PATH", "")
+    print("[DEBUG write_video] ffmpeg after fix =", shutil.which("ffmpeg"))
+    # wx
+    
     mediapy.write_video(path, images, fps=fps, codec='gif')
 
 

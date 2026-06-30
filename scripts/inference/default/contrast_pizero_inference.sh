@@ -1,11 +1,20 @@
-num_gpus=8
-n_trajs=100
+# wx
+PCD_ROOT="/media/hwx/Xixixi/code-vla/PCD"
+export PYTHONPATH="${PCD_ROOT}:${PCD_ROOT}/simpler_env/policies/pizero:${PCD_ROOT}/simpler_env/policies/pizero/open_pi_zero:${PYTHONPATH}"
+export HYDRA_FULL_ERROR=1
+
+cd ${PCD_ROOT}
+# wx
+
+num_gpus=1
+n_trajs=300
 result_root="./results/default/contrast"
 
-search_opts="by point_tracking,box_tracking,grounded_sam_tracking alpha 0.2 num_repeats 24"
+# search_opts="by point_tracking,box_tracking,grounded_sam_tracking alpha 0.2 num_repeats 24"
+search_opts="by grounded_sam_tracking alpha 0.2 num_repeats 24"
 
 policies=("pizero")
-checkpoints=("pretrained/open-pi-zero")
+checkpoints=("/media/hwx/Xixixi/code-vla/VLA/PCD/open_pi_zero")
 
 tasks=(
     "google_robot_pick_coke_can"
@@ -24,7 +33,7 @@ for i in "${!policies[@]}"; do
     for task in "${tasks[@]}"; do
         echo "Running inference for ${policies[$i]} on $task"
 
-        python parallel_inference.py \
+        CUDA_VISIBLE_DEVICES=0 python parallel_inference.py \
             --contrast \
             --n-trajs $n_trajs \
             --num-gpus $num_gpus \

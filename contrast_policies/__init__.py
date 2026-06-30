@@ -1,3 +1,19 @@
+# wx
+def _pop_random_mask_keys(config):
+    config = dict(config)
+    random_mask_keys = [
+        "random_feature_mask",
+        "mask_keep_ratio",
+        "mask_seed",
+        "mask_rescale",
+        "mask_target",
+        "mask_verbose",
+    ]
+    for key in random_mask_keys:
+        config.pop(key, None)
+    return config
+# wx
+
 def get_policy(policy, contrast, config):
     if policy == 'octo':
         if not contrast:
@@ -14,12 +30,19 @@ def get_policy(policy, contrast, config):
             from .openvla_contrast import OpenVLAContrastInference
             policy = OpenVLAContrastInference(**config)
     elif policy == 'pizero':
-        if not contrast:
-            from simpler_env.policies.pizero.pizero_model import PiZeroInference
-            policy = PiZeroInference(**config)
+        # wx
+        if config.get("random_feature_mask", False):
+            from .pizero_random_mask import PiZeroRandomMaskInference
+            policy = PiZeroRandomMaskInference(**config)
         else:
-            from .pizero_contrast import PiZeroContrastInference
-            policy = PiZeroContrastInference(**config)
+            config = _pop_random_mask_keys(config)
+        # wx
+            if not contrast:
+                from simpler_env.policies.pizero.pizero_model import PiZeroInference
+                policy = PiZeroInference(**config)
+            else:
+                from .pizero_contrast import PiZeroContrastInference
+                policy = PiZeroContrastInference(**config)
     else:
         raise NotImplementedError()
     

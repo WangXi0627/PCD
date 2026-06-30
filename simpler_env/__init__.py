@@ -1,6 +1,11 @@
 import gymnasium as gym
 import mani_skill2_real2sim.envs
 
+"""
+import simpler_env
+print(simpler_env.ENVIRONMENTS)
+输出如下：
+"""
 ENVIRONMENTS = [
     "google_robot_pick_coke_can",
     "google_robot_pick_pepsi_can",

@@ -29,8 +29,12 @@ env:
   task:
   adapter:
     _target_: src.agent.env_adapter.simpler.EDRSimplerAdapter
-    dataset_statistics_path: config/fractal_statistics.json
-    pretrained_model_path: ${oc.env:TRANSFORMERS_CACHE}/paligemma-3b-pt-224
+    # wx
+    # dataset_statistics_path: config/fractal_statistics.json
+    dataset_statistics_path: simpler_env/policies/pizero/open_pi_zero/config/fractal_statistics.json
+    # pretrained_model_path: ${oc.env:TRANSFORMERS_CACHE}/paligemma-3b-pt-224
+    pretrained_model_path: /media/hwx/Xixixi/code-vla/VLA/PCD/paligemma-3b-pt-224
+    # wx
     tokenizer_padding: max_length
     max_seq_len: 276  # fixed 256 for image + max 20 for text
     num_image_tokens: 256

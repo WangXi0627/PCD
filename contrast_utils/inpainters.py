@@ -15,7 +15,10 @@ from .utils import dilate_mask
 
 
 _LAMA_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'third_party', 'inpaint_anything', 'lama', 'configs', 'prediction', 'default.yaml')
-_LAMA_CKPT_PATH = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'big-lama')
+# wx
+# _LAMA_CKPT_PATH = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'big-lama')
+_LAMA_CKPT_PATH = '/media/hwx/Xixixi/code-vla/VLA/PCD/big-lama'
+# wx
 
 _DILATE_SIZE = 5
 

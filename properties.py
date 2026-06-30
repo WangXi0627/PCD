@@ -33,10 +33,24 @@ OPENVLA_CONFIG = dict(
 )
 
 OPEN_PIZERO_CONFIG = dict(
-    cfg_dir='open_pi_zero/config/eval',
+    # wx
+    # cfg_dir='open_pi_zero/config/eval',
+    cfg_dir='/media/hwx/Xixixi/code-vla/PCD/simpler_env/policies/pizero/open_pi_zero/config/eval',
+    # wx
     use_ddp=False,
     use_naive=False,
     use_torch_compile=True,
+    
+    # wx
+    # Random feature mask motivation experiment for pi0.
+    # These keys must be here, otherwise --opts will not update them.
+    random_feature_mask=False,
+    mask_keep_ratio=1.0,
+    mask_seed=0,
+    mask_rescale=True,
+    mask_target="siglip_text_embedding",
+    mask_verbose=False,
+    # wx
 )
 
 CONTRAST_IMAGE_CONFIG = dict(

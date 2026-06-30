@@ -71,7 +71,20 @@ class ParallelRunner:
         if not self._set_result_dir():
             return
         self._build_logger()
-        gpu_id = self._check_free_gpus()[0]
+
+        # wx: 自定义GPU
+        # gpu_id = self._check_free_gpus()[0]
+        visible_gpus = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip()
+        if visible_gpus:
+            # In a CUDA_VISIBLE_DEVICES-restricted process,
+            # PyTorch sees the first visible GPU as cuda:0.
+            gpu_id = 0
+            self.logger.info(f"CUDA_VISIBLE_DEVICES={visible_gpus}, use logical cuda:{gpu_id}")
+        else:
+            gpu_id = self._check_free_gpus()[0]
+            self.logger.info(f"CUDA_VISIBLE_DEVICES not set, auto-selected gpu_id={gpu_id}")
+        # wx: 自定义GPU
+        
         episodes = range(self.n_trajs)
         infos = self.run_episodes(gpu_id, episodes, show_detail=True)
         info = stat_info(infos)
@@ -277,13 +290,29 @@ class ParallelRunner:
         others = self._build_others(show_detail)
         return env, policy, others
 
+    # wx: 自定义GPU
+    # def _set_gpu(self, gpu_id):
+    #     """  Set GPU, it must be called before building policy. """
+    #     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    #     # list_physical devices can avoid cuda error, don't know why
+    #     import tensorflow as tf
+    #     tf.config.list_physical_devices("GPU")
     def _set_gpu(self, gpu_id):
-        """  Set GPU, it must be called before building policy. """
+        visible_gpus = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip()
+        if visible_gpus:
+            # 外部已经指定了可见 GPU，例如 CUDA_VISIBLE_DEVICES=3。
+            # 这时不能再覆盖成 CUDA_VISIBLE_DEVICES=0。
+            # 在 PyTorch 内部，物理 GPU 3 会被映射成 logical cuda:0。
+            self.logger.info(
+                f"Keep existing CUDA_VISIBLE_DEVICES={visible_gpus}; "
+                f"use logical cuda:{gpu_id}"
+            )
+            return
+        # 如果外部没有指定 CUDA_VISIBLE_DEVICES，才使用代码自动选出来的物理 GPU。
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-        # list_physical devices can avoid cuda error, don't know why
-        import tensorflow as tf
-        tf.config.list_physical_devices("GPU")
-
+        self.logger.info(f"Set CUDA_VISIBLE_DEVICES={gpu_id}")
+    # wx: 自定义GPU
+    
     def _build_environment(self, show_detail=False):
         """ Build environment. """
         import simpler_env

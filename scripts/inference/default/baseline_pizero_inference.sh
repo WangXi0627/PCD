@@ -1,8 +1,18 @@
-num_gpus=8
+# wx
+PCD_ROOT="/media/hwx/Xixixi/code-vla/PCD"
+export PYTHONPATH="${PCD_ROOT}:${PCD_ROOT}/simpler_env/policies/pizero:${PCD_ROOT}/simpler_env/policies/pizero/open_pi_zero:${PYTHONPATH}"
+export HYDRA_FULL_ERROR=1
+
+cd ${PCD_ROOT}
+# wx
+
+num_gpus=1
+n_trajs=300
 result_root="./results/default/baseline"
 
 policies=("pizero")
-checkpoints=("pretrained/open-pi-zero")
+checkpoints=("/media/hwx/Xixixi/code-vla/VLA/PCD/open_pi_zero")
+
 tasks=(
     "google_robot_pick_coke_can"
     "google_robot_move_near"
@@ -19,9 +29,10 @@ for i in "${!policies[@]}"; do
     for task in "${tasks[@]}"; do
         echo "Running inference for ${policies[$i]} on $task"
 
-        python parallel_inference.py \
+        CUDA_VISIBLE_DEVICES=2 python parallel_inference.py \
             --num-gpus $num_gpus \
             --result-root $result_root \
+            --n-trajs $n_trajs \
             --policy ${policies[$i]} \
             --checkpoint ${checkpoints[$i]} \
             --task $task
