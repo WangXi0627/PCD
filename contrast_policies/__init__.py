@@ -1,4 +1,4 @@
-# wx
+# wx: motivation
 def _pop_random_mask_keys(config):
     config = dict(config)
     random_mask_keys = [
@@ -12,7 +12,7 @@ def _pop_random_mask_keys(config):
     for key in random_mask_keys:
         config.pop(key, None)
     return config
-# wx
+# wx: motivation
 
 def get_policy(policy, contrast, config):
     if policy == 'octo':
@@ -30,13 +30,13 @@ def get_policy(policy, contrast, config):
             from .openvla_contrast import OpenVLAContrastInference
             policy = OpenVLAContrastInference(**config)
     elif policy == 'pizero':
-        # wx
+        # wx: motivation
         if config.get("random_feature_mask", False):
             from .pizero_random_mask import PiZeroRandomMaskInference
             policy = PiZeroRandomMaskInference(**config)
         else:
             config = _pop_random_mask_keys(config)
-        # wx
+        # wx: motivation
             if not contrast:
                 from simpler_env.policies.pizero.pizero_model import PiZeroInference
                 policy = PiZeroInference(**config)

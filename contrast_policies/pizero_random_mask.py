@@ -1,4 +1,4 @@
-# wx
+# wx: motivation
 # contrast_policies/pizero_random_mask.py
 
 from __future__ import annotations

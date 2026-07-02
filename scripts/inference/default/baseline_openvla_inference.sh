@@ -1,13 +1,13 @@
-# wx
+# wx:复现
 PCD_ROOT="/media/hwx/Xixixi/code-vla/PCD"
 export PYTHONPATH="${PCD_ROOT}:${PCD_ROOT}/simpler_env/policies/pizero:${PCD_ROOT}/simpler_env/policies/pizero/open_pi_zero:${PYTHONPATH}"
 export HYDRA_FULL_ERROR=1
 
 cd ${PCD_ROOT}
-# wx
+# wx:复现
 
 num_gpus=1
-n_trajs=300
+n_trajs=300     # wx:复现
 result_root="./results/default/baseline"
 
 policies=("openvla")

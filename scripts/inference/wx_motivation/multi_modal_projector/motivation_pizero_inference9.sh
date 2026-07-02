@@ -20,13 +20,13 @@ num_gpus=1
 gpu_id=3
 
 # 动机实验先别跑 300，先跑 50 看现象
-n_trajs=50
+n_trajs=100
 
 policy="pizero"
 
 tasks=(
-    # "google_robot_pick_coke_can"
-    "google_robot_move_near"
+    "google_robot_pick_coke_can"
+    # "google_robot_move_near"
     # "google_robot_close_drawer"
     # "google_robot_open_drawer"
     # "widowx_carrot_on_plate"

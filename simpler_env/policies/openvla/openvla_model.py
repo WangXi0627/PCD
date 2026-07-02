@@ -11,9 +11,9 @@ import cv2 as cv
 
 from .. import setup_torch_seed
 
-# wx
+# wx:复现
 _TOKEN_DIM = 32064
-# wx
+# wx:复现
 
 class OpenVLAInference:
     def __init__(
@@ -124,11 +124,11 @@ class OpenVLAInference:
         )['scores']
         scores = torch.cat(scores, dim=0)
         
-        # wx
+        # wx:复现
         if scores.size(0) < self.vla.get_action_dim(self.unnorm_key):
             print(f"*** Warning: scores size {scores.size(0)} < action dim {self.vla.get_action_dim(self.unnorm_key)} ***")
             scores = torch.zeros((self.vla.get_action_dim(self.unnorm_key), _TOKEN_DIM), device=scores.device)
-        # wx
+        # wx:复现
         
         predicted_action_token_ids = scores.argmax(dim=-1)
         raw_actions = self._decode_actions(predicted_action_token_ids, self.unnorm_key)[None]
