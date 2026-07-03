@@ -35,7 +35,7 @@ OPENVLA_CONFIG = dict(
 OPEN_PIZERO_CONFIG = dict(
     # wx:复现
     # cfg_dir='open_pi_zero/config/eval',
-    cfg_dir='/media/hwx/Xixixi/code-vla/PCD/simpler_env/policies/pizero/open_pi_zero/config/eval',
+    cfg_dir='./simpler_env/policies/pizero/open_pi_zero/config/eval',
     # wx:复现
     use_ddp=False,
     use_naive=False,

@@ -1,5 +1,8 @@
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+
 # wx:复现
-PCD_ROOT="/media/hwx/Xixixi/code-vla/PCD"
+export PCD_ROOT="/data/Xixixi/VLA/PCD"
+export MODEL_ROOT="/data/Xixixi/Model/PCD"
 export PYTHONPATH="${PCD_ROOT}:${PCD_ROOT}/simpler_env/policies/pizero:${PCD_ROOT}/simpler_env/policies/pizero/open_pi_zero:${PYTHONPATH}"
 export HYDRA_FULL_ERROR=1
 
@@ -16,7 +19,7 @@ search_opts="by grounded_sam_tracking alpha 0.2 num_repeats 24"
 # wx:复现
 
 policies=("pizero")
-checkpoints=("/media/hwx/Xixixi/code-vla/VLA/PCD/open_pi_zero")
+checkpoints=("${MODEL_ROOT}/open_pi_zero")
 
 tasks=(
     "google_robot_pick_coke_can"

@@ -5,8 +5,10 @@ set -e
 # =========================
 # Basic paths
 # =========================
-PCD_ROOT="/media/hwx/Xixixi/code-vla/PCD"
-CHECKPOINT="/media/hwx/Xixixi/code-vla/VLA/PCD/open_pi_zero"
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+export PCD_ROOT="/data/Xixixi/VLA/PCD"
+export MODEL_ROOT="/data/Xixixi/Model/PCD"
+CHECKPOINT="${MODEL_ROOT}/open_pi_zero"
 
 export PYTHONPATH="${PCD_ROOT}:${PCD_ROOT}/simpler_env/policies/pizero:${PCD_ROOT}/simpler_env/policies/pizero/open_pi_zero:${PYTHONPATH}"
 export HYDRA_FULL_ERROR=1
