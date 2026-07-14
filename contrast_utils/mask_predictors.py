@@ -15,6 +15,41 @@ _CLASSNAMES = ['robot', 'coke can', 'pepsi can', 'redbull can', '7up can', 'blue
 
 _BACKGROUND_CLASSNAMES = ['floor', 'wall', 'ceiling']
 
+# wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
+_DYNAMIC_CLASSNAME_TO_ID = {}
+_DYNAMIC_ID_TO_CLASSNAME = {}
+
+def get_tracking_obj_id(prompt):
+    """
+    Return a stable positive object id for SAM2 tracking.
+
+    Original PCD assumes every prompt is in _CLASSNAMES.
+    For GR00T/SimplerEnv variants, prompts such as "sprite can" may appear.
+    We keep the text prompt unchanged for open-vocabulary detection, and only
+    allocate a new id for SAM2 tracking.
+    """
+    if prompt in _CLASSNAMES:
+        return _CLASSNAMES.index(prompt) + 1
+
+    if prompt not in _DYNAMIC_CLASSNAME_TO_ID:
+        obj_id = len(_CLASSNAMES) + len(_DYNAMIC_CLASSNAME_TO_ID) + 1
+        _DYNAMIC_CLASSNAME_TO_ID[prompt] = obj_id
+        _DYNAMIC_ID_TO_CLASSNAME[obj_id] = prompt
+
+    return _DYNAMIC_CLASSNAME_TO_ID[prompt]
+
+def get_tracking_classname(obj_id):
+    """
+    Map SAM2 tracking object id back to class name.
+    """
+    obj_id = int(obj_id)
+
+    if 1 <= obj_id <= len(_CLASSNAMES):
+        return _CLASSNAMES[obj_id - 1]
+
+    return _DYNAMIC_ID_TO_CLASSNAME.get(obj_id, None)
+# wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
+
 _NAME_TO_ALIAS_GDINO = {
     '7up can': 'white 7up pop can',
     'redbull can': 'redbull pop can',
@@ -414,7 +449,10 @@ class TrackingPredictor:
 
         for frame_idx, masks in enumerate(selected_masks_list):
             for mask, prompt in zip(masks, prompts):
-                obj_id = _CLASSNAMES.index(prompt) + 1
+                # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
+                # obj_id = _CLASSNAMES.index(prompt) + 1
+                obj_id = get_tracking_obj_id(prompt)
+                # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
                 if mask is not None:
                     self.video_predictor.add_new_mask(self.inference_state, frame_idx, obj_id, mask)
     
@@ -436,7 +474,12 @@ class TrackingPredictor:
                 continue
             name2mask = dict()
             for idx, obj_id in enumerate(obj_ids):
-                classname = _CLASSNAMES[obj_id - 1]
+                # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
+                # classname = _CLASSNAMES[obj_id - 1]
+                classname = get_tracking_classname(obj_id)
+                if classname is None:
+                    continue
+                # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
                 mask = (mask_logits[idx].cpu().numpy() > 0).squeeze(0)
                 if not mask.any():
                     mask = None
@@ -468,7 +511,10 @@ class TrackingPredictorV2:
             
             self.video_predictor.load_first_frame(image)
             for mask, prompt in zip(masks, prompts):
-                obj_id = _CLASSNAMES.index(prompt) + 1
+                # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
+                # obj_id = _CLASSNAMES.index(prompt) + 1
+                obj_id = get_tracking_obj_id(prompt)
+                # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
                 if mask is not None:
                     self.video_predictor.add_new_mask(0, obj_id, mask)
                     
@@ -478,7 +524,12 @@ class TrackingPredictorV2:
         obj_ids, mask_logits = self.video_predictor.track(image)
         name2mask = dict()
         for idx, obj_id in enumerate(obj_ids):
-            classname = _CLASSNAMES[obj_id - 1]
+            # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
+            # classname = _CLASSNAMES[obj_id - 1]
+            classname = get_tracking_classname(obj_id)
+            if classname is None:
+                continue
+            # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
             mask = (mask_logits[idx].cpu().numpy() > 0).squeeze(0)
             if not mask.any():
                 mask = None

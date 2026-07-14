@@ -357,6 +357,11 @@ class ParallelRunner:
     
     def _check_free_gpus(self):
         """ Check free GPUs. """
+        # wx:H100仅有一个GPU，直接返回0
+        if self.policy == "groot":
+            return [0]
+        # wx:H100仅有一个GPU，直接返回0
+    
         used_memorys = os.popen(f"nvidia-smi --query-gpu=memory.used --format=csv,nounits,noheader").readlines()
         used_memorys = [int(memory.strip()) for memory in used_memorys]
         return [i for i, memory in enumerate(used_memorys) if memory < 1000]

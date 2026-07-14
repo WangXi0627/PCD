@@ -10,6 +10,7 @@ _INSTRUCTION_TEMPLATES = [
     r"put (.+) into (.+)",
     r"put (.+) on (.+)",
     r"stack (.+) on (.+)",
+    r"put (.+) in (.+)",        # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
 ]
 
 _ALL_DRAWER_PARTS = ['body', 'top drawer', 'middle drawer', 'bottom drawer']
