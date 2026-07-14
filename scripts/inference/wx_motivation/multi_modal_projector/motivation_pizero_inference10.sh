@@ -5,9 +5,9 @@ set -e
 # =========================
 # Basic paths
 # =========================
-export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
-export PCD_ROOT="/data/Xixixi/VLA/PCD"
-export MODEL_ROOT="/data/Xixixi/Model/PCD"
+# export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+export PCD_ROOT="/media/hwx/Xixixi/code-vla/PCD"
+export MODEL_ROOT="/media/hwx/Xixixi/code-vla/VLA/PCD"
 CHECKPOINT="${MODEL_ROOT}/open_pi_zero"
 
 export PYTHONPATH="${PCD_ROOT}:${PCD_ROOT}/simpler_env/policies/pizero:${PCD_ROOT}/simpler_env/policies/pizero/open_pi_zero:${PYTHONPATH}"
@@ -19,10 +19,10 @@ cd "${PCD_ROOT}"
 # Experiment settings
 # =========================
 num_gpus=1
-gpu_id=1
+gpu_id=3
 
 # 动机实验先别跑 300，先跑 50 看现象
-n_trajs=50
+n_trajs=100
 
 policy="pizero"
 
@@ -50,8 +50,7 @@ keep_ratios=(
 
 # 10 个随机 mask seed，对应图上的 10 个点
 mask_seeds=(
-    3 4 5 6 7 8 9
-    # 0 1 2 3 4 5 6 7 8 9
+    0 1 2 3 4 5 6 7 8 9
 )
 
 # 输出目录

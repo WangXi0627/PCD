@@ -19,7 +19,7 @@ _LAMA_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'third_party',
 # _LAMA_CKPT_PATH = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'big-lama')
 from pathlib import Path
 MODEL_ROOT = Path(os.environ.get("MODEL_ROOT", "/data/Xixixi/Model/PCD"))
-_LAMA_CKPT_PATH = MODEL_ROOT / "big-lama"
+_LAMA_CKPT_PATH = str(MODEL_ROOT / "big-lama")
 # wx:复现
 
 _DILATE_SIZE = 5

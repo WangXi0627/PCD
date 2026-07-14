@@ -53,6 +53,27 @@ OPEN_PIZERO_CONFIG = dict(
     # wx:motivation
 )
 
+# wx:集成GR00T-N1.6
+GROOT_CONFIG = dict(
+    host="127.0.0.1",
+    port=5555,
+    timeout_ms=60000,
+    action_key=None,
+    exec_horizon=1,
+    debug=False,
+
+    # Reserved for stage 2.
+    image_mask_mode="none",
+
+    # Reserved for stage 3.
+    feature_mask_enable=False,
+    feature_mask_target="image_tokens",
+    feature_mask_mode="dim",
+    feature_mask_keep_ratio=1.0,
+    feature_mask_seed=0,
+)
+# wx:集成GR00T-N1.6
+
 CONTRAST_IMAGE_CONFIG = dict(
     camera_name=None,
     by="gt",
@@ -82,18 +103,29 @@ CONTRAST_OPEN_PIZERO_CONFIG = dict(
 )
 
 def get_policy_config(policy, checkpoint, task, opts, contrast):
+    # wx:集成GR00T-N1.6
     if policy == 'rt1':
-        config = RT1_CONFIG
+        # config = RT1_CONFIG
+        config = RT1_CONFIG.copy()
         config['saved_model_path'] = checkpoint
     elif policy == 'octo':
-        config = OCTO_CONFIG
+        # config = OCTO_CONFIG
+        config = OCTO_CONFIG.copy()
         config['model_type'] = checkpoint
     elif policy == 'openvla':
-        config = OPENVLA_CONFIG
+        # config = OPENVLA_CONFIG
+        config = OPENVLA_CONFIG.copy()
         config['saved_model_path'] = checkpoint
     elif policy == 'pizero':
-        config = OPEN_PIZERO_CONFIG
+        # config = OPEN_PIZERO_CONFIG
+        config = OPEN_PIZERO_CONFIG.copy()
         config['checkpoint_path'] = checkpoint
+    elif policy == 'groot':
+        config = GROOT_CONFIG.copy()
+        # checkpoint is only used for naming result directory in PCD.
+        # The real GR00T checkpoint is loaded by the external GR00T server.
+        config['checkpoint_name'] = checkpoint
+    # wx:集成GR00T-N1.6
     else:
         raise NotImplementedError()
     
@@ -114,6 +146,10 @@ def get_policy_config(policy, checkpoint, task, opts, contrast):
             config.update(CONTRAST_OPENVLA_CONFIG)
         elif policy == 'pizero':
             config.update(CONTRAST_OPEN_PIZERO_CONFIG)
+        # wx:集成GR00T-N1.6
+        elif policy == 'groot':
+            raise NotImplementedError("GR00T contrast is stage 2.")
+        # wx:集成GR00T-N1.6
         else:
             raise NotImplementedError()
     

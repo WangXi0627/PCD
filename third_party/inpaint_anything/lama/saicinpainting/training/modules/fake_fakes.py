@@ -1,5 +1,5 @@
 import torch
-from kornia import SamplePadding
+from kornia.constants import SamplePadding      # wx:GR00T-N1.6 + PCD-style grounded_sam_tracking runner
 from kornia.augmentation import RandomAffine, CenterCrop
 
 

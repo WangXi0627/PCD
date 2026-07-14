@@ -43,6 +43,12 @@ def get_policy(policy, contrast, config):
             else:
                 from .pizero_contrast import PiZeroContrastInference
                 policy = PiZeroContrastInference(**config)
+    # wx:集成GR00T-N1.6
+    elif policy == 'groot':
+        if not contrast:
+            from .groot_client import Gr00tClientInference
+            policy = Gr00tClientInference(**config)
+    # wx:集成GR00T-N1.6
     else:
         raise NotImplementedError()
     
