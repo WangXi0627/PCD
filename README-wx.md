@@ -135,3 +135,8 @@ PCD/scripts/inference/wx_learnable/v1.0/* (新增)
 # 报错：ModuleNotFoundError: No module named 'expecttest'
 python -m pip install expecttest
 ```
+
+```
+# 报错：RuntimeError: not allowed to set torch.backends.cudnn flags after disable_global_flags; please use flags() context manager instead
+PCD/simpler_env/policies/__init__.py (修改)
+```
