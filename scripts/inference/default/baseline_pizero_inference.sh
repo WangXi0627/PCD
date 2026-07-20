@@ -10,8 +10,8 @@ cd ${PCD_ROOT}
 # wx:复现
 
 num_gpus=1
-n_trajs=300     # wx:复现
-result_root="./results/default/baseline"
+n_trajs=100     # wx:复现
+result_root="./results/default-100/baseline"
 
 policies=("pizero")
 checkpoints=("${MODEL_ROOT}/open_pi_zero")

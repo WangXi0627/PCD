@@ -109,3 +109,29 @@ PCD/contrast_utils/instruction_templates.py (修改)
 # 报错：RuntimeError: PCD ContrastImageGenerator failed at env_idx=0, step_idx=2301, instruction='place sprite can into bottom drawer': ValueError("'sprite can' is not in list")
 PCD/contrast_utils/mask_predictors.py (修改)
 ```
+
+# Test-time adaptive mask selection
+PCD/contrast_policies/pizero_adaptive_mask.py (新增)
+PCD/properties.py (修改)
+PCD/contrast_policies/__init__.py (修改)
+PCD/scripts/inference/wx_adaptive/* (新增)
+
+```
+# 报错：OSError: [Errno 36] File name too long:
+PCD/parallel_inference.py (修改)
+```
+
+# GR00T random feature mask
+PCD/parallel_inference_groot_pcd.py (修改)
+PCD/scripts/inference/wx_motivation/GR00T/* (新增)
+
+# Test-time learnable feature mask v1.0
+PCD/contrast_policies/pizero_learnable_mask.py (新增)
+PCD/properties.py (修改)
+PCD/contrast_policies/__init__.py (修改)
+PCD/scripts/inference/wx_learnable/v1.0/* (新增)
+
+```
+# 报错：ModuleNotFoundError: No module named 'expecttest'
+python -m pip install expecttest
+```

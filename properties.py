@@ -51,6 +51,42 @@ OPEN_PIZERO_CONFIG = dict(
     mask_target="siglip_text_embedding",
     mask_verbose=False,
     # wx:motivation
+    
+    # wx:Test-time adaptive mask selection
+    adaptive_feature_mask=False,
+    adaptive_mask_keep_ratio=0.9,
+    adaptive_mask_seeds="0,1,2,3,4,5,6,7,8,9",
+    adaptive_num_candidates=10,
+    adaptive_mask_rescale=True,
+    adaptive_mask_target="multi_modal_projector",
+    adaptive_include_nomask=False,
+    adaptive_score_mode="consensus",
+    adaptive_consensus_weight=1.0,
+    adaptive_temporal_weight=0.0,
+    adaptive_norm_weight=0.0,
+    adaptive_verbose=False,
+    # wx:Test-time adaptive mask selection
+    
+    # wx:Test-time learnable feature mask v1.0
+    learnable_feature_mask=False,
+    learnable_mask_target="multi_modal_projector",
+    learnable_target_keep_ratio=0.75,
+    learnable_mask_temperature=1.0,
+    learnable_mask_rescale=True,
+    learnable_opt_steps=5,
+    learnable_lr=0.1,
+    learnable_anchor_weight=1.0,
+    learnable_keep_weight=10.0,
+    learnable_binary_weight=0.0,
+    learnable_l2_weight=0.0,
+    learnable_reset_each_episode=True,
+    learnable_hard_topk_eval=False,
+    learnable_verbose=False,
+    learnable_early_stop=True,
+    learnable_min_opt_steps=2,
+    learnable_loss_tol=1e-4,
+    learnable_patience=2,
+    # wx:Test-time learnable feature mask v1.0
 )
 
 # wx:集成GR00T-N1.6

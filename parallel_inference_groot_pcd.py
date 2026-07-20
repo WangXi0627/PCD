@@ -18,6 +18,11 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+# wx:GR00T random feature mask
+import hashlib
+import re
+# wx:GR00T random feature mask
+
 from gr00t.eval.rollout_policy import (
     MultiStepConfig,
     VideoConfig,
@@ -70,6 +75,47 @@ def mkdir(path: str | Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
 
+# wx:GR00T random feature mask
+def safe_dir_name(name: str, max_len: int = 160) -> str:
+    """
+    Convert a user-provided experiment name into a safe directory name.
+    If the name is too long, keep a short prefix and append a hash.
+    """
+    name = str(name).strip()
+    name = name.replace(" ", "_")
+    name = re.sub(r"[^A-Za-z0-9_.=+\-]", "_", name)
+
+    if len(name) <= max_len:
+        return name
+
+    digest = hashlib.md5(name.encode("utf-8")).hexdigest()[:8]
+    return f"{name[:max_len]}--{digest}"
+
+def safe_relative_path(name: str, max_part_len: int = 120) -> Path:
+    """
+    Convert a user-provided run_name into a safe relative path.
+
+    Example:
+        "a/b/c" -> Path("a") / "b" / "c"
+
+    Each path component is sanitized independently.
+    Absolute paths and empty components are ignored.
+    """
+    parts = []
+    for part in str(name).replace("\\", "/").split("/"):
+        part = part.strip()
+        if part in ("", ".", ".."):
+            continue
+        parts.append(safe_dir_name(part, max_len=max_part_len))
+
+    if len(parts) == 0:
+        return Path("default_run")
+
+    return Path(*parts)
+
+def now_timestamp() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+# wx:GR00T random feature mask
 
 def pcd_task_to_groot_env_name(task: str) -> str:
     """
@@ -235,6 +281,10 @@ def build_policy_options(args: argparse.Namespace, step_idx: int) -> Optional[Di
             "keep_ratio": float(args.feature_mask_keep_ratio),
             "seed": int(args.feature_mask_seed),
             "rescale": str2bool(args.feature_mask_rescale),
+            # wx:GR00T random feature mask
+            "verbose": str2bool(args.feature_mask_verbose),
+            "print_candidates": str2bool(args.feature_mask_print_candidates),
+            # wx:GR00T random feature mask
         },
         "sample_seed": int(args.feature_mask_seed) + int(step_idx),
     }
@@ -666,6 +716,9 @@ class GrootPCDRunner:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        # wx:GR00T random feature mask
+        self.run_timestamp = now_timestamp()
+        # wx:GR00T random feature mask
 
         self.env_name = pcd_task_to_groot_env_name(args.task)
         self.output_dir = self._build_output_dir()
@@ -680,6 +733,10 @@ class GrootPCDRunner:
             mkdir(self.video_dir)
         if str2bool(args.pcd_debug_save_images):
             mkdir(self.debug_image_dir)
+
+        # wx:GR00T random feature mask
+        self._write_run_config()
+        # wx:GR00T random feature mask
 
         self._log("Output directory: " + str(self.output_dir))
         self._log("Env name: " + self.env_name)
@@ -714,41 +771,99 @@ class GrootPCDRunner:
         )
         self.contrast_generator: Optional[VectorizedPCDContrastGenerator] = None
 
+    # wx:GR00T random feature mask
+    # def _build_output_dir(self) -> Path:
+    #     checkpoint = self.args.checkpoint
+    #     task_name = self.args.task.replace("/", "_")
+
+    #     run_name = self.args.run_name
+    #     if not run_name:
+    #         pcd_tag = (
+    #             f"groot_pcd_original"
+    #             f"--rep={self.args.pcd_num_repeats}"
+    #             f"--alpha={self.args.pcd_alpha}"
+    #             f"--bw={self.args.pcd_bandwidth_factor}"
+    #             f"--keep={self.args.pcd_keep_threshold}"
+    #         )
+    #         contrast_tag = (
+    #             f"pcdby={self.args.pcd_by}"
+    #             f"_inpaint={self.args.pcd_inpaint_mode}"
+    #             f"_allparts={self.args.pcd_get_all_parts}"
+    #         )
+    #         feat_tag = (
+    #             f"feat={self.args.feature_mask_mode}"
+    #             f"_keep={self.args.feature_mask_keep_ratio}"
+    #             if str2bool(self.args.feature_mask_enable)
+    #             else "feat=none"
+    #         )
+    #         run_name = (
+    #             f"{pcd_tag}"
+    #             f"--host={self.args.policy_client_host}"
+    #             f"--port={self.args.policy_client_port}"
+    #             f"--n_action_steps={self.args.n_action_steps}"
+    #             f"--n_envs={self.args.n_envs}"
+    #             f"--{contrast_tag}"
+    #             f"--{feat_tag}"
+    #         )
+
+    #     return Path(self.args.output_root) / checkpoint / run_name / task_name
+    # wx:GR00T random feature mask
     def _build_output_dir(self) -> Path:
-        checkpoint = self.args.checkpoint
-        task_name = self.args.task.replace("/", "_")
+        checkpoint_name = safe_dir_name(
+            Path(str(self.args.checkpoint).replace("\\", "/")).name
+        )
+        task_name = safe_dir_name(self.args.task.replace("/", "_"))
 
-        run_name = self.args.run_name
-        if not run_name:
-            pcd_tag = (
-                f"groot_pcd_original"
-                f"--rep={self.args.pcd_num_repeats}"
-                f"--alpha={self.args.pcd_alpha}"
-                f"--bw={self.args.pcd_bandwidth_factor}"
-                f"--keep={self.args.pcd_keep_threshold}"
-            )
-            contrast_tag = (
-                f"pcdby={self.args.pcd_by}"
-                f"_inpaint={self.args.pcd_inpaint_mode}"
-                f"_allparts={self.args.pcd_get_all_parts}"
-            )
-            feat_tag = (
-                f"feat={self.args.feature_mask_mode}"
-                f"_keep={self.args.feature_mask_keep_ratio}"
-                if str2bool(self.args.feature_mask_enable)
-                else "feat=none"
-            )
+        user_run_name = str(self.args.run_name).strip()
+
+        if user_run_name:
+            run_path = safe_relative_path(user_run_name)
+            if not bool(self.args.no_timestamp):
+                run_path = run_path.parent / f"{run_path.name}_{self.run_timestamp}"
+            self.run_name_resolved = str(run_path)
+            return Path(self.args.output_root) / checkpoint_name / run_path / task_name
+
+        else:
+            if str2bool(self.args.pcd_enable):
+                method_tag = (
+                    f"groot_pcd_original"
+                    f"_rep={self.args.pcd_num_repeats}"
+                    f"_alpha={self.args.pcd_alpha}"
+                    f"_bw={self.args.pcd_bandwidth_factor}"
+                    f"_keep={self.args.pcd_keep_threshold}"
+                    f"_by={self.args.pcd_by}"
+                    f"_inpaint={self.args.pcd_inpaint_mode}"
+                )
+            else:
+                method_tag = "groot_official"
+
+            if str2bool(self.args.feature_mask_enable):
+                target_tag = safe_dir_name(self.args.feature_mask_target, max_len=80)
+                feat_tag = (
+                    f"feat={self.args.feature_mask_mode}"
+                    f"_target={target_tag}"
+                    f"_keep={self.args.feature_mask_keep_ratio}"
+                    f"_seed={self.args.feature_mask_seed}"
+                    f"_rescale={self.args.feature_mask_rescale}"
+                )
+            else:
+                feat_tag = "feat=none"
+
             run_name = (
-                f"{pcd_tag}"
-                f"--host={self.args.policy_client_host}"
-                f"--port={self.args.policy_client_port}"
-                f"--n_action_steps={self.args.n_action_steps}"
-                f"--n_envs={self.args.n_envs}"
-                f"--{contrast_tag}"
-                f"--{feat_tag}"
+                f"{method_tag}"
+                f"_host={self.args.policy_client_host}"
+                f"_port={self.args.policy_client_port}"
+                f"_act={self.args.n_action_steps}"
+                f"_env={self.args.n_envs}"
+                f"_{feat_tag}"
             )
 
-        return Path(self.args.output_root) / checkpoint / run_name / task_name
+            run_name = safe_dir_name(run_name)
+
+        self.run_name_resolved = run_name
+
+        return Path(self.args.output_root) / checkpoint_name / run_name / task_name
+    # wx:GR00T random feature mask
 
     def _build_wrapper_configs(self) -> WrapperConfigs:
         video_dir = str(self.video_dir) if str2bool(self.args.save_video) else None
@@ -770,6 +885,69 @@ class GrootPCDRunner:
                 terminate_on_success=str2bool(self.args.terminate_on_success),
             ),
         )
+        
+    # wx:GR00T random feature mask
+    def _write_run_config(self):
+        """
+        Save all experiment settings before rollout starts.
+        This is useful for random/adaptive feature-mask experiments.
+        """
+        config = {
+            "result_dir": str(self.output_dir),
+            "run_name": self.args.run_name,
+            "run_name_resolved": getattr(self, "run_name_resolved", None),
+            "run_timestamp": self.run_timestamp,
+            "no_timestamp": bool(self.args.no_timestamp),
+            "force": str2bool(self.args.force),
+
+            "task": self.args.task,
+            "env_name": self.env_name,
+            "checkpoint": self.args.checkpoint,
+            "output_root": self.args.output_root,
+            "n_episodes": int(self.args.n_episodes),
+            "n_envs": int(self.args.n_envs),
+            "n_action_steps": int(self.args.n_action_steps),
+            "max_episode_steps": int(self.args.max_episode_steps),
+
+            "policy_server": {
+                "host": self.args.policy_client_host,
+                "port": int(self.args.policy_client_port),
+                "timeout_ms": int(self.args.timeout_ms),
+            },
+
+            "pcd": {
+                "enable": str2bool(self.args.pcd_enable),
+                "num_repeats": int(self.args.pcd_num_repeats),
+                "alpha": float(self.args.pcd_alpha),
+                "bandwidth_factor": float(self.args.pcd_bandwidth_factor),
+                "keep_threshold": float(self.args.pcd_keep_threshold),
+                "by": self.args.pcd_by,
+                "inpaint_mode": self.args.pcd_inpaint_mode,
+                "get_all_parts": str2bool(self.args.pcd_get_all_parts),
+                "fallback_on_error": str2bool(self.args.pcd_fallback_on_error),
+            },
+
+            "feature_mask": {
+                "enable": str2bool(self.args.feature_mask_enable),
+                "target": self.args.feature_mask_target,
+                "mode": self.args.feature_mask_mode,
+                "keep_ratio": float(self.args.feature_mask_keep_ratio),
+                "seed": int(self.args.feature_mask_seed),
+                "rescale": str2bool(self.args.feature_mask_rescale),
+                "verbose": str2bool(getattr(self.args, "feature_mask_verbose", False)),
+                "print_candidates": str2bool(getattr(self.args, "feature_mask_print_candidates", False)),
+            },
+
+            "video": {
+                "save_video": str2bool(self.args.save_video),
+                "steps_per_render": int(self.args.steps_per_render),
+                "video_fps": int(self.args.video_fps),
+                "overlay_text": str2bool(self.args.overlay_text),
+            },
+        }
+
+        safe_json_dump(config, self.output_dir / "run_config.json")
+    # wx:GR00T random feature mask
 
     def _log(self, msg: str):
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -818,6 +996,13 @@ class GrootPCDRunner:
 
     def run(self) -> Dict[str, Any]:
         args = self.args
+        
+        # wx:GR00T random feature mask
+        if self.summary_path.exists() and not str2bool(args.force):
+            self._log(f"[Skip] summary.json already exists: {self.summary_path}")
+            with open(self.summary_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        # wx:GR00T random feature mask
 
         n_envs = int(args.n_envs)
         n_episodes = max(int(args.n_episodes), n_envs)
@@ -967,6 +1152,12 @@ class GrootPCDRunner:
             "env_name": self.env_name,
             "task": args.task,
             "checkpoint": args.checkpoint,
+            # wx:GR00T random feature mask
+            "run_name": args.run_name,
+            "run_name_resolved": getattr(self, "run_name_resolved", None),
+            "run_timestamp": self.run_timestamp,
+            "no_timestamp": bool(args.no_timestamp),
+            # wx:GR00T random feature mask
             "n_episodes_requested": int(args.n_episodes),
             "n_episodes_collected": int(len(episode_successes)),
             "n_envs": int(args.n_envs),
@@ -1039,6 +1230,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-trajs", "--n_episodes", dest="n_episodes", type=int, default=10)
     parser.add_argument("--output-root", type=str, default="./results")
     parser.add_argument("--run-name", type=str, default="")
+    # wx:GR00T random feature mask
+    parser.add_argument("--no-timestamp", action="store_true")
+    parser.add_argument("--force", type=str2bool, default=False)
+    # wx:GR00T random feature mask
 
     # GR00T official-style arguments
     parser.add_argument("--policy_client_host", type=str, default="127.0.0.1")
@@ -1083,7 +1278,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--feature_mask_keep_ratio", type=float, default=1.0)
     parser.add_argument("--feature_mask_seed", type=int, default=0)
     parser.add_argument("--feature_mask_rescale", type=str2bool, default=True)
-
+    # wx:GR00T random feature mask
+    parser.add_argument("--feature_mask_verbose", type=str2bool, default=False)
+    parser.add_argument("--feature_mask_print_candidates", type=str2bool, default=False)
+    # wx:GR00T random feature mask
+    
     return parser
 
 
