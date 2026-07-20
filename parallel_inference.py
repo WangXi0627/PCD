@@ -6,8 +6,34 @@ import os.path as osp
 import shutil
 import traceback
 
+# wx:Test-time adaptive mask selection
+import json
+import hashlib
+import re
+from datetime import datetime as dt
+# wx:Test-time adaptive mask selection
+
 from utils import *
 
+# wx:Test-time adaptive mask selection
+def safe_dir_name(name: str, max_len: int = 120) -> str:
+    """
+    Convert a user-provided experiment name into a safe directory name.
+    If the name is too long, keep a short prefix and append a hash.
+    """
+    name = str(name).strip()
+    name = name.replace(" ", "_")
+    name = re.sub(r"[^A-Za-z0-9_.=+\-]", "_", name)
+
+    if len(name) <= max_len:
+        return name
+
+    digest = hashlib.md5(name.encode("utf-8")).hexdigest()[:8]
+    return f"{name[:max_len]}--{digest}"
+
+def now_timestamp() -> str:
+    return dt.now().strftime("%Y%m%d_%H%M%S")
+# wx:Test-time adaptive mask selection
 
 def get_image_from_maniskill2_obs_dict(env, obs, camera_name=None):
     # obtain image from observation dictionary returned by ManiSkill2 environment
@@ -45,7 +71,12 @@ class ParallelRunner:
                  result_root='./results',
                  n_trajs=100,
                  contrast=False,
-                 opts=[]):
+                 opts=[],
+                 # wx:Test-time adaptive mask selection
+                 run_name=None,
+                 append_timestamp=True,
+                 # wx:Test-time adaptive mask selection
+                ):
         self.num_gpus = num_gpus
         self.policy = policy
         self.checkpoint = checkpoint
@@ -54,6 +85,15 @@ class ParallelRunner:
         self.n_trajs = n_trajs
         self.contrast = contrast
         self.opts = parse_opts(opts)
+        # wx:Test-time adaptive mask selection
+        # Save both raw opts and parsed opts.
+        self.raw_opts = list(opts) if opts is not None else []
+        self.opts = parse_opts(opts)
+        # Custom short experiment name.
+        self.run_name = run_name
+        self.append_timestamp = append_timestamp
+        self.run_timestamp = now_timestamp()
+        # wx:Test-time adaptive mask selection 
         
     def run(self):
         """
@@ -366,31 +406,126 @@ class ParallelRunner:
         used_memorys = [int(memory.strip()) for memory in used_memorys]
         return [i for i, memory in enumerate(used_memorys) if memory < 1000]
     
+    # wx:Test-time adaptive mask selection
+    def _get_opts_dir_name(self):
+        """
+        Directory name for opts.
+
+        If --run-name is provided:
+            use run_name + timestamp.
+        Else:
+            fall back to the original opts-based name, but make it safe and short.
+        """
+        if self.run_name is not None and str(self.run_name).strip() != "":
+            opts_name = safe_dir_name(self.run_name)
+
+            if self.append_timestamp:
+                opts_name = f"{opts_name}_{self.run_timestamp}"
+
+            return opts_name
+
+        if len(self.opts) > 0:
+            opts_name = "--".join(f"{k}={v}" for k, v in self.opts.items())
+            return safe_dir_name(opts_name)
+
+        return None
+
+    def _write_run_config(self):
+        """
+        Save all experiment settings into run_config.json.
+        """
+        config = {
+            "result_dir": self.result_dir,
+            "run_name": self.run_name,
+            "run_timestamp": self.run_timestamp,
+            "policy": self.policy,
+            "checkpoint": self.checkpoint,
+            "task": self.task,
+            "result_root": self.result_root,
+            "n_trajs": self.n_trajs,
+            "contrast": self.contrast,
+            "opts_raw": self.raw_opts,
+            "opts_parsed": self.opts,
+        }
+
+        config_path = osp.join(self.result_dir, "run_config.json")
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2, default=str)
+    # wx:Test-time adaptive mask selection
+    
+    # wx:Test-time adaptive mask selection
+    # def _set_result_dir(self):
+    #     # model_name = '/'.join(self.checkpoint.replace('\\', '/').split('/')[1:])
+    #     model_name = self.checkpoint.replace('\\', '/').split('/')[-1]
+    #     self.result_dir = osp.join(self.result_root, model_name)
+    #     if len(self.opts) > 0:
+    #         self.result_dir = osp.join(self.result_dir, '--'.join(f'{k}={v}' for k, v in self.opts.items()))
+    #     self.result_dir = osp.join(self.result_dir, self.task)
+        
+    #     # create result directory if not exists
+    #     if not os.path.exists(self.result_dir):
+    #         print(f"Directory {self.result_dir} does not exist, create it.")
+    #         os.makedirs(self.result_dir)
+    #         return True
+        
+    #     log_filename = [filename for filename in os.listdir(self.result_dir) if filename.startswith('000') and filename.endswith('.log')]
+    #     # abnormal state: have directory but not log has created, remove it and create directory
+    #     if len(log_filename) == 0:
+    #         print(f"Directory {self.result_dir} exists, but no log file, remove it and create directory.")
+    #         shutil.rmtree(self.result_dir)
+    #         os.makedirs(self.result_dir)
+    #         return True
+        
+    #     # normal state: have directory and finished task
+    #     log_filename = log_filename[0]
+    #     if log_filename.startswith('000_success_'):
+    #         print(f"Directory {self.result_dir} exists, and finished task, skip it.")
+    #         return False
+
+    #     # other abnormal states: e.g. have directory and log, but not finished task
+    #     print(f"Directory {self.result_dir} exists, but not finished task, remove it and create directory.")
+    #     shutil.rmtree(self.result_dir)
+    #     os.makedirs(self.result_dir)
+    #     return True
+    # wx:Test-time adaptive mask selection
     def _set_result_dir(self):
         # model_name = '/'.join(self.checkpoint.replace('\\', '/').split('/')[1:])
         model_name = self.checkpoint.replace('\\', '/').split('/')[-1]
         self.result_dir = osp.join(self.result_root, model_name)
-        if len(self.opts) > 0:
-            self.result_dir = osp.join(self.result_dir, '--'.join(f'{k}={v}' for k, v in self.opts.items()))
+
+        opts_dir_name = self._get_opts_dir_name()
+        if opts_dir_name is not None:
+            self.result_dir = osp.join(self.result_dir, opts_dir_name)
+
         self.result_dir = osp.join(self.result_dir, self.task)
-        
+
         # create result directory if not exists
         if not os.path.exists(self.result_dir):
             print(f"Directory {self.result_dir} does not exist, create it.")
             os.makedirs(self.result_dir)
+            self._write_run_config()
             return True
-        
-        log_filename = [filename for filename in os.listdir(self.result_dir) if filename.startswith('000') and filename.endswith('.log')]
-        # abnormal state: have directory but not log has created, remove it and create directory
+
+        log_filename = [
+            filename
+            for filename in os.listdir(self.result_dir)
+            if filename.startswith("000") and filename.endswith(".log")
+        ]
+
+        # abnormal state: have directory but no log has created, remove it and create directory
         if len(log_filename) == 0:
-            print(f"Directory {self.result_dir} exists, but no log file, remove it and create directory.")
+            print(
+                f"Directory {self.result_dir} exists, but no log file, "
+                "remove it and create directory."
+            )
             shutil.rmtree(self.result_dir)
             os.makedirs(self.result_dir)
+            self._write_run_config()
             return True
-        
+
         # normal state: have directory and finished task
         log_filename = log_filename[0]
-        if log_filename.startswith('000_success_'):
+        if log_filename.startswith("000_success_"):
             print(f"Directory {self.result_dir} exists, and finished task, skip it.")
             return False
 
@@ -398,7 +533,9 @@ class ParallelRunner:
         print(f"Directory {self.result_dir} exists, but not finished task, remove it and create directory.")
         shutil.rmtree(self.result_dir)
         os.makedirs(self.result_dir)
+        self._write_run_config()
         return True
+    # wx:Test-time adaptive mask selection
     
     def _write_error(self, episode, error):
         with open(osp.join(self.result_dir, f"000_episode_{episode}_error.log"), 'w') as f:
@@ -442,7 +579,12 @@ def main(args):
                                       result_root=args.result_root,
                                       n_trajs=args.n_trajs,
                                       contrast=args.contrast,
-                                      opts=args.opts)
+                                      opts=args.opts,
+                                      # wx:Test-time adaptive mask selection
+                                      run_name=args.run_name,
+                                      append_timestamp=not args.no_timestamp,
+                                      # wx:Test-time adaptive mask selection
+                                      )
     else:
         runner = ParallelRunner(num_gpus=args.num_gpus,
                                 policy=args.policy,
@@ -451,7 +593,12 @@ def main(args):
                                 result_root=args.result_root,
                                 n_trajs=args.n_trajs,
                                 contrast=args.contrast,
-                                opts=args.opts)
+                                opts=args.opts,
+                                # wx:Test-time adaptive mask selection
+                                run_name=args.run_name,
+                                append_timestamp=not args.no_timestamp,
+                                # wx:Test-time adaptive mask selection
+                                )
     runner.run()
 
 
@@ -466,5 +613,9 @@ if __name__ == '__main__':
     parser.add_argument("--contrast", action="store_true")
     parser.add_argument("--opts", nargs="+", default=[])
     parser.add_argument("--search-opts", nargs="+", default=[])
+    # wx:Test-time adaptive mask selection
+    parser.add_argument("--run-name", type=str, default=None)
+    parser.add_argument("--no-timestamp", action="store_true")
+    # wx:Test-time adaptive mask selection
     args = parser.parse_args()
     main(args)
