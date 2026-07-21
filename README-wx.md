@@ -140,3 +140,11 @@ python -m pip install expecttest
 # 报错：RuntimeError: not allowed to set torch.backends.cudnn flags after disable_global_flags; please use flags() context manager instead
 PCD/simpler_env/policies/__init__.py (修改)
 ```
+
+# Rollout collect
+PCD/rollout_data/__init__.py (新增)
+PCD/rollout_data/recorder.py (新增)
+PCD/parallel_inference.py (修改)
+PCD/scripts/check_rollout_dataset.py (新增)
+PCD/.gitignore (修改)
+PCD/scripts/inference/wx_collect_data/* (新增)
