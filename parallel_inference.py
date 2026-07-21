@@ -15,6 +15,10 @@ from datetime import datetime as dt
 
 from utils import *
 
+# wx:Rollout collect
+from rollout_data import EpisodeRolloutRecorder, make_executed_action_vector
+# wx:Rollout collect
+
 # wx:Test-time adaptive mask selection
 def safe_dir_name(name: str, max_len: int = 120) -> str:
     """
@@ -76,6 +80,12 @@ class ParallelRunner:
                  run_name=None,
                  append_timestamp=True,
                  # wx:Test-time adaptive mask selection
+                 # wx:Rollout collect
+                 collect_rollouts=False,
+                 rollout_root='./rollouts',
+                 rollout_compress=True,
+                 save_gif=True,
+                 # wx:Rollout collect 
                 ):
         self.num_gpus = num_gpus
         self.policy = policy
@@ -94,6 +104,12 @@ class ParallelRunner:
         self.append_timestamp = append_timestamp
         self.run_timestamp = now_timestamp()
         # wx:Test-time adaptive mask selection 
+        # wx:Rollout collect 
+        self.collect_rollouts = bool(collect_rollouts)
+        self.rollout_root = rollout_root
+        self.rollout_compress = bool(rollout_compress)
+        self.save_gif = bool(save_gif)
+        # wx:Rollout collect 
         
     def run(self):
         """
@@ -237,22 +253,58 @@ class ParallelRunner:
         if show_detail:
             self.logger.info(f"Initial instruction: {instruction}")
 
+        # wx:Rollout collect
+        # predicted_terminated, success, truncated = False, False, False
+        # timestep = 0
+        # frames = []
+        # step_infos = []
+
+        # # get initial image
+        # image = get_image_from_maniskill2_obs_dict(env, obs)  # np.ndarray of shape (H, W, 3), uint8
+        
+        # if not self.contrast:
+        #     frames.append(image)
+        # else:
+        #     contrast_image = self.contrast_image_generator.generate(obs, instruction)
+        #     frames.append(tile_images([image, contrast_image]))
+        # wx:Rollout collect
         predicted_terminated, success, truncated = False, False, False
         timestep = 0
+        query_index = 0
         frames = []
         step_infos = []
-
-        # get initial image
-        image = get_image_from_maniskill2_obs_dict(env, obs)  # np.ndarray of shape (H, W, 3), uint8
-        
-        if not self.contrast:
-            frames.append(image)
+        image = get_image_from_maniskill2_obs_dict(env, obs)
+        rollout_recorder = None
+        if self.collect_rollouts:
+            rollout_recorder = EpisodeRolloutRecorder(
+                rollout_root=self.rollout_root,
+                task=self.task,
+                episode_id=episode,
+                seed=episode,
+                policy_name=self.policy,
+                checkpoint=self.checkpoint,
+                compress=self.rollout_compress,
+            )
+        if self.save_gif:
+            if not self.contrast:
+                frames.append(image)
+            else:
+                contrast_image = self.contrast_image_generator.generate(obs, instruction)
+                frames.append(tile_images([image, contrast_image]))
         else:
-            contrast_image = self.contrast_image_generator.generate(obs, instruction)
-            frames.append(tile_images([image, contrast_image]))
+            if self.contrast:
+                contrast_image = self.contrast_image_generator.generate(obs, instruction)
+        # wx:Rollout collect
         
         # run episode
         while not (predicted_terminated or truncated):
+            # wx:Rollout collect
+            query_image = np.asarray(image).copy()
+            query_instruction = str(instruction)
+            query_proprio = np.asarray(obs['agent']['eef_pos']).copy()
+            env_step_start = int(timestep)
+            # wx:Rollout collect
+            
             # get action from policy
             # only pi-0 use proprio
             if not self.contrast:
@@ -262,19 +314,40 @@ class ParallelRunner:
 
             if not isinstance(actions, list):
                 actions = [actions]
+                
+            # wx:Rollout collect
+            executed_action_vectors = []
+            # wx:Rollout collect
             
             for action in actions:
-                # apply action to environment
-                obs, reward, success, truncated, info = env.step(np.concatenate([action["world_vector"], 
-                                                                                 action["rot_axangle"], 
-                                                                                 action["gripper"]]))
+                # wx:Rollout collect
+                # # apply action to environment
+                # obs, reward, success, truncated, info = env.step(np.concatenate([action["world_vector"], 
+                #                                                                  action["rot_axangle"], 
+                #                                                                  action["gripper"]]))
+                # wx:Rollout collect
+                env_action = make_executed_action_vector(action)
+                executed_action_vectors.append(env_action.copy())
+                obs, reward, success, truncated, info = env.step(env_action)
+                # wx:Rollout collect
+                
                 image = get_image_from_maniskill2_obs_dict(env, obs)
                 if not self.contrast:
-                    frames.append(image)
+                    # wx:Rollout collect
+                    # frames.append(image)
+                    # wx:Rollout collect
+                    if self.save_gif:
+                        frames.append(image)
+                    # wx:Rollout collect
                     # write_images([image], f"visualize/test.jpg")
                 else:
                     contrast_image = self.contrast_image_generator.generate(obs, instruction)
-                    frames.append(tile_images([image, contrast_image]))
+                    # wx:Rollout collect
+                    # frames.append(tile_images([image, contrast_image]))
+                    # wx:Rollout collect
+                    if self.save_gif:
+                        frames.append(tile_images([image, contrast_image]))
+                    # wx:Rollout collect
                     # write_images([image, contrast_image], f"visualize/test.jpg")
 
                 is_final_subtask = env.unwrapped.is_final_subtask() 
@@ -297,14 +370,55 @@ class ParallelRunner:
                     instruction = new_instruction
                     if show_detail:
                         self.logger.info(f"New instruction: {instruction}")
-        
+
+            # wx:Rollout collect
+            if rollout_recorder is not None:
+                next_image = np.asarray(image).copy()
+                next_proprio = np.asarray(obs['agent']['eef_pos']).copy()
+                next_instruction = str(instruction)
+                rollout_recorder.add_query(
+                    image_t=query_image,
+                    instruction_t=query_instruction,
+                    policy_proprio_t=query_proprio,
+                    raw_action_chunk=raw_action,
+                    executed_action_chunk=executed_action_vectors,
+                    next_image=next_image,
+                    next_policy_proprio=next_proprio,
+                    next_instruction=next_instruction,
+                    episode_id=episode,
+                    query_index=query_index,
+                    env_step_start=env_step_start,
+                    env_step_end=int(timestep),
+                    terminated=bool(predicted_terminated),
+                    truncated=bool(truncated),
+                    success_at_end=bool(success),
+                    instruction_changed=(query_instruction != next_instruction),
+                )
+            query_index += 1
+            # wx:Rollout collect
+            
         # summarize episode
         info = summarize(step_infos)
         info.update(stat_first(step_infos))
         info.update(stat_final(step_infos))
         success = info['success']
         self.logger.info(f"Episode {episode} finished with success {success}.")
-        write_video(frames, f"{self.result_dir}/episode_{episode}_success_{success}.gif")
+        # wx:Rollout collect
+        # write_video(frames, f"{self.result_dir}/episode_{episode}_success_{success}.gif")
+        # wx:Rollout collect
+        if self.save_gif:
+            write_video(frames, f"{self.result_dir}/episode_{episode}_success_{success}.gif")
+        if rollout_recorder is not None:
+            rollout_recorder.finalize(
+                final_success=bool(success),
+                terminated=bool(predicted_terminated),
+                truncated=bool(truncated),
+                num_environment_steps=int(timestep),
+            )
+            rollout_dir = rollout_recorder.save()
+            if show_detail:
+                self.logger.info(f"Saved rollout data to {rollout_dir}")
+        # wx:Rollout collect
         return info
     
     def build_episode(self, gpu_id, show_detail):
@@ -406,7 +520,7 @@ class ParallelRunner:
         used_memorys = [int(memory.strip()) for memory in used_memorys]
         return [i for i, memory in enumerate(used_memorys) if memory < 1000]
     
-     # wx:Test-time adaptive mask selection
+    # wx:Test-time adaptive mask selection
     def _get_opts_dir_name(self):
         """
         Directory name for opts.
@@ -584,6 +698,12 @@ def main(args):
                                       run_name=args.run_name,
                                       append_timestamp=not args.no_timestamp,
                                       # wx:Test-time adaptive mask selection
+                                      # wx:Rollout collect
+                                      collect_rollouts=args.collect_rollouts,
+                                      rollout_root=args.rollout_root,
+                                      rollout_compress=not args.no_rollout_compress,
+                                      save_gif=not args.no_save_gif,
+                                      # wx:Rollout collect
                                       )
     else:
         runner = ParallelRunner(num_gpus=args.num_gpus,
@@ -598,6 +718,12 @@ def main(args):
                                 run_name=args.run_name,
                                 append_timestamp=not args.no_timestamp,
                                 # wx:Test-time adaptive mask selection
+                                # wx:Rollout collect
+                                collect_rollouts=args.collect_rollouts,
+                                rollout_root=args.rollout_root,
+                                rollout_compress=not args.no_rollout_compress,
+                                save_gif=not args.no_save_gif,
+                                # wx:Rollout collect
                                 )
     runner.run()
 
@@ -617,5 +743,11 @@ if __name__ == '__main__':
     parser.add_argument("--run-name", type=str, default=None)
     parser.add_argument("--no-timestamp", action="store_true")
     # wx:Test-time adaptive mask selection
+    # wx:Rollout collect
+    parser.add_argument("--collect-rollouts", action="store_true")
+    parser.add_argument("--rollout-root", type=str, default="./rollouts")
+    parser.add_argument("--no-rollout-compress", action="store_true")
+    parser.add_argument("--no-save-gif", action="store_true")
+    # wx:Rollout collect
     args = parser.parse_args()
     main(args)
