@@ -148,3 +148,17 @@ PCD/parallel_inference.py (修改)
 PCD/scripts/check_rollout_dataset.py (新增)
 PCD/.gitignore (修改)
 PCD/scripts/inference/wx_collect_data/* (新增)
+
+# H100 执行
+export NVIDIA_DRIVER_CAPABILITIES=all
+export LD_LIBRARY_PATH=/data/nvidia_userspace_repair/nvidia595-vendor:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+export VK_ICD_FILENAMES=/data/nvidia_userspace_repair/nvidia_595_full_egl_icd.json
+export XDG_RUNTIME_DIR=/tmp/vk-runtime
+
+mkdir -p /tmp/vk-runtime
+chmod 700 /tmp/vk-runtime
+
+echo "===== ENV ====="
+echo "NVIDIA_DRIVER_CAPABILITIES=$NVIDIA_DRIVER_CAPABILITIES"
+echo "VK_ICD_FILENAMES=$VK_ICD_FILENAMES"
+echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"

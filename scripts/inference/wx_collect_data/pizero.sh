@@ -2,8 +2,8 @@
 
 set -e
 
-export PCD_ROOT="/media/hwx/Xixixi/code-vla/PCD"
-export MODEL_ROOT="/media/hwx/Xixixi/code-vla/VLA/PCD"
+export PCD_ROOT="/data/Xixixi/VLA/PCD"
+export MODEL_ROOT="/data/Xixixi/Model/PCD"
 CHECKPOINT="${MODEL_ROOT}/open_pi_zero"
 
 export PYTHONPATH="${PCD_ROOT}:${PCD_ROOT}/simpler_env/policies/pizero:${PCD_ROOT}/simpler_env/policies/pizero/open_pi_zero:${PYTHONPATH}"
@@ -13,7 +13,7 @@ export MUJOCO_GL=egl
 cd "${PCD_ROOT}"
 
 num_gpus=1
-gpu_id=1
+gpu_id=0
 n_trajs=20
 
 result_root="./results/collector"
