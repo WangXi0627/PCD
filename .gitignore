@@ -63,5 +63,8 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
-# wx:Rollout collect
+# wx
+checkpoints/
 rollouts/
+redundancy_cache/
+teacher_cache/

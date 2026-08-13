@@ -87,6 +87,35 @@ OPEN_PIZERO_CONFIG = dict(
     learnable_loss_tol=1e-4,
     learnable_patience=2,
     # wx:Test-time learnable feature mask v1.0
+    
+    # wx:Dynamic gate v1
+    dynamic_feature_gate=False,
+
+    # Stage 1 supports:
+    # - identity: exact all-pass gate for lossless regression
+    # - dynamic: DynamicChannelGate, optionally loaded from checkpoint
+    dynamic_gate_mode="identity",
+
+    dynamic_gate_checkpoint=None,
+    dynamic_gate_num_groups=64,
+    dynamic_gate_hidden_dim=512,
+
+    # For an untrained stage-1 wiring test, use 0.99 first.
+    dynamic_gate_target_keep_ratio=0.99,
+    dynamic_gate_temperature=1.0,
+    dynamic_gate_rescale=False,
+
+    dynamic_gate_checkpoint_strict=True,
+    dynamic_gate_verbose=False,
+    dynamic_gate_log_every=1,
+    # wx:Dynamic gate v1
+    
+    # wx:Dynamic gate v3
+    # Stage 3 deterministic online evaluation
+    deterministic_action_noise=False,
+    action_noise_base_seed=0,
+    evaluation_task_name=None,
+    # wx:Dynamic gate v3
 )
 
 # wx:集成GR00T-N1.6
@@ -172,6 +201,11 @@ def get_policy_config(policy, checkpoint, task, opts, contrast):
         config['policy_setup'] = 'widowx_bridge'
     else:
         raise NotImplementedError
+    
+    # wx:Dynamic gate v3
+    if policy == "pizero":
+        config["evaluation_task_name"] = str(task)
+    # wx:Dynamic gate v3
 
     # update config if contrast policy is used
     if contrast:

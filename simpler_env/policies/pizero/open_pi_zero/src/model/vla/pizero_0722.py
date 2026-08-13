@@ -8,11 +8,7 @@ Potentially customized to add/remove mixtures, e.g., remove proprio or add anoth
 """
 
 import logging
-# wx:Dynamic gate v0
-# from typing import Optional, Tuple
-# wx:Dynamic gate v0
-from typing import Any, Dict, Optional, Tuple
-# wx:Dynamic gate v0
+from typing import Optional, Tuple
 
 import hydra
 import torch
@@ -383,313 +379,47 @@ class PiZero(nn.Module, NoSyncBase):
         return causal_mask, position_ids
 
     # ---------- Inference ----------#
-    
-    # wx:Dynamic gate v0
-    def encode_projected_image_features(
-        self,
-        pixel_values: torch.FloatTensor,
-    ) -> torch.FloatTensor:
-        """
-        Encode images into projected visual patch features.
 
-        Returns
-        -------
-        torch.Tensor
-            Shape [B, N, D], where PiZero currently uses N=256 and D=2048.
-        """
-        selected_image_feature = self.vision_tower(pixel_values)
-        image_features = self.multi_modal_projector(
-            selected_image_feature
-        )
-        return image_features
-
-    @staticmethod
-    def _pool_text_context(
-        inputs_embeds: torch.Tensor,
-        text_mask: torch.Tensor,
-    ) -> torch.Tensor:
-        """
-        Mean-pool valid text-token embeddings.
-
-        Image tokens and padding tokens must already be excluded by text_mask.
-        """
-        text_weights = text_mask.unsqueeze(-1).to(
-            dtype=inputs_embeds.dtype
-        )
-        denominator = text_weights.sum(dim=1).clamp_min(1.0)
-
-        text_context = (
-            inputs_embeds * text_weights
-        ).sum(dim=1) / denominator
-
-        return text_context
-
-    def _prepare_initial_action_noise(
-        self,
-        initial_action_noise: Optional[torch.Tensor],
-        *,
-        batch_size: int,
-        device: torch.device,
-        dtype: torch.dtype,
-    ) -> torch.Tensor:
-        """
-        Create or validate the initial flow-matching action noise.
-
-        Supplying this tensor allows baseline and gated inference to use the
-        exact same stochastic starting point.
-        """
-        expected_shape = (
-            batch_size,
-            self.horizon_steps,
-            self.action_dim,
-        )
-
-        if initial_action_noise is None:
-            return torch.randn(
-                expected_shape,
-                device=device,
-                dtype=dtype,
-            )
-
-        if tuple(initial_action_noise.shape) != expected_shape:
-            raise ValueError(
-                "initial_action_noise has an invalid shape. "
-                f"Expected {expected_shape}, "
-                f"got {tuple(initial_action_noise.shape)}."
-            )
-
-        return initial_action_noise.to(
-            device=device,
-            dtype=dtype,
-        ).clone()
-    # wx:Dynamic gate v0
-
-    # wx:Dynamic gate v0
-    # def _forward_siglip_and_text_embedding(
-    #     self,
-    #     input_ids: torch.LongTensor,
-    #     pixel_values: torch.FloatTensor,
-    # ) -> torch.FloatTensor:
-    #     dtype, device = pixel_values.dtype, pixel_values.device
-
-    #     # text embedding
-    #     # [Batch_Size, Seq_Len, Hidden_Size]
-    #     inputs_embeds = self.embed_tokens(input_ids)
-
-    #     # image features from siglip and projector
-    #     # [Batch_Size, Channels, Height, Width] -> [Batch_Size, Num_Patches, Embed_Dim] -> [Batch_Size, Num_Patches, Hidden_Size]
-    #     selected_image_feature = self.vision_tower(pixel_values)
-    #     image_features = self.multi_modal_projector(selected_image_feature)
-
-    #     # normalize the image features
-    #     _, _, embed_dim = image_features.shape
-    #     bsz, seq_len = input_ids.shape
-    #     scaled_image_features = image_features / (self.image_text_hidden_size**0.5)
-
-    #     # put embedding together - image, text, padding
-    #     final_embedding = torch.full(
-    #         (bsz, seq_len, embed_dim), self.pad_token_id, dtype=dtype, device=device
-    #     )
-
-    #     # [Batch_Size, Seq_Len]
-    #     text_mask = (input_ids != self.image_token_index) & (
-    #         input_ids != self.pad_token_id
-    #     )
-    #     image_mask = input_ids == self.image_token_index
-    #     final_embedding[text_mask] = inputs_embeds[text_mask]
-    #     for i in range(bsz):
-    #         image_indices = image_mask[i].nonzero(as_tuple=True)[0]
-    #         num_image_tokens = len(image_indices)
-    #         final_embedding[i, image_indices] = scaled_image_features[
-    #             i, :num_image_tokens
-    #         ]
-    #     return final_embedding
-    # wx:Dynamic gate v0
     def _forward_siglip_and_text_embedding(
         self,
         input_ids: torch.LongTensor,
         pixel_values: torch.FloatTensor,
-        proprios: Optional[torch.FloatTensor] = None,
-        visual_gate: Optional[nn.Module] = None,
-        return_visual_gate_info: bool = False,
-    ):
-        """
-        Build the joint image-text embedding.
-
-        The optional visual gate is applied only to projected image patch
-        features, before those features are merged with text embeddings.
-        """
+    ) -> torch.FloatTensor:
         dtype, device = pixel_values.dtype, pixel_values.device
 
-        # Text embeddings: [B, sequence_length, hidden_size]
+        # text embedding
+        # [Batch_Size, Seq_Len, Hidden_Size]
         inputs_embeds = self.embed_tokens(input_ids)
 
-        text_mask = (
-            (input_ids != self.image_token_index)
-            & (input_ids != self.pad_token_id)
+        # image features from siglip and projector
+        # [Batch_Size, Channels, Height, Width] -> [Batch_Size, Num_Patches, Embed_Dim] -> [Batch_Size, Num_Patches, Hidden_Size]
+        selected_image_feature = self.vision_tower(pixel_values)
+        image_features = self.multi_modal_projector(selected_image_feature)
+
+        # normalize the image features
+        _, _, embed_dim = image_features.shape
+        bsz, seq_len = input_ids.shape
+        scaled_image_features = image_features / (self.image_text_hidden_size**0.5)
+
+        # put embedding together - image, text, padding
+        final_embedding = torch.full(
+            (bsz, seq_len, embed_dim), self.pad_token_id, dtype=dtype, device=device
+        )
+
+        # [Batch_Size, Seq_Len]
+        text_mask = (input_ids != self.image_token_index) & (
+            input_ids != self.pad_token_id
         )
         image_mask = input_ids == self.image_token_index
-
-        text_context = self._pool_text_context(
-            inputs_embeds=inputs_embeds,
-            text_mask=text_mask,
-        )
-
-        # Pure visual path:
-        # pixel values -> SigLIP -> projector -> optional visual gate
-        image_features = self.encode_projected_image_features(
-            pixel_values
-        )
-
-        visual_gate_info: Optional[Dict[str, torch.Tensor]] = None
-
-        if visual_gate is not None:
-            gate_output = visual_gate(
-                image_features=image_features,
-                text_context=text_context,
-                proprios=proprios,
-                return_aux=return_visual_gate_info,
-            )
-
-            if return_visual_gate_info:
-                if (
-                    not isinstance(gate_output, tuple)
-                    or len(gate_output) != 2
-                ):
-                    raise TypeError(
-                        "When return_visual_gate_info=True, visual_gate "
-                        "must return (gated_features, aux_dict)."
-                    )
-
-                image_features, visual_gate_info = gate_output
-            else:
-                if not torch.is_tensor(gate_output):
-                    raise TypeError(
-                        "visual_gate must return a Tensor when "
-                        "return_aux=False."
-                    )
-                image_features = gate_output
-
-            if image_features.ndim != 3:
-                raise ValueError(
-                    "Gated image features must have shape [B, N, D], "
-                    f"got {tuple(image_features.shape)}."
-                )
-
-        # Match the original PaliGemma visual-feature scaling.
-        _, _, embed_dim = image_features.shape
-        batch_size, sequence_length = input_ids.shape
-        scaled_image_features = (
-            image_features / (self.image_text_hidden_size**0.5)
-        )
-
-        final_embedding = torch.full(
-            (batch_size, sequence_length, embed_dim),
-            self.pad_token_id,
-            dtype=dtype,
-            device=device,
-        )
-
         final_embedding[text_mask] = inputs_embeds[text_mask]
-
-        for batch_index in range(batch_size):
-            image_indices = image_mask[
-                batch_index
-            ].nonzero(as_tuple=True)[0]
-
+        for i in range(bsz):
+            image_indices = image_mask[i].nonzero(as_tuple=True)[0]
             num_image_tokens = len(image_indices)
-
-            final_embedding[
-                batch_index,
-                image_indices,
-            ] = scaled_image_features[
-                batch_index,
-                :num_image_tokens,
+            final_embedding[i, image_indices] = scaled_image_features[
+                i, :num_image_tokens
             ]
-
-        if return_visual_gate_info:
-            return final_embedding, visual_gate_info
-
         return final_embedding
-    # wx:Dynamic gate v0
 
-    # wx:Dynamic gate v0
-    # def infer_action(
-    #     self,
-    #     input_ids: torch.LongTensor,
-    #     pixel_values: torch.FloatTensor,
-    #     image_text_proprio_mask: torch.FloatTensor,
-    #     action_mask: torch.FloatTensor,
-    #     vlm_position_ids: torch.LongTensor,
-    #     proprio_position_ids: torch.LongTensor,
-    #     action_position_ids: torch.LongTensor,
-    #     proprios: torch.FloatTensor,
-    # ) -> torch.FloatTensor:
-    #     dtype, device = pixel_values.dtype, pixel_values.device
-    #     bsz = pixel_values.size(0)
-
-    #     kv_caches = self.joint_model.build_mixture_caches()
-
-    #     # merge the text tokens and the image tokens
-    #     inputs_embeds = self._forward_siglip_and_text_embedding(input_ids, pixel_values)
-
-    #     # proprio
-    #     proprio_embeds = self.proprio_encoder(proprios)
-
-    #     # forward pass thru the vlm and proprio, cache the kv
-    #     _, kv_caches = self.joint_model(
-    #         attention_mask=image_text_proprio_mask,
-    #         position_ids_all={
-    #             "vlm": vlm_position_ids,
-    #             "proprio": proprio_position_ids,
-    #         },
-    #         embeds_all={
-    #             "vlm": inputs_embeds,
-    #             "proprio": proprio_embeds,
-    #         },
-    #         kv_caches=kv_caches,
-    #         return_caches=True,
-    #     )
-
-    #     # sample pure action noise
-    #     action = torch.randn(
-    #         (bsz, self.horizon_steps, self.action_dim), device=device, dtype=dtype
-    #     )
-
-    #     # forward euler integration --- using kv caches of vlm and proprio
-    #     delta_t = 1.0 / self.num_inference_steps
-    #     t = torch.zeros(bsz, device=device, dtype=dtype)
-    #     for _ in range(self.num_inference_steps):
-    #         # encode action and time into embedding
-    #         time_cond = self.time_embedding(t)
-    #         # [Batch_Size, Horizon_Steps, Embed_Dim]
-    #         if self.action_expert_adaptive_mode:
-    #             action_embeds = self.action_encoder(action)
-    #         else:
-    #             action_embeds = self.action_encoder(action, time_cond)
-    #         # [Batch_Size, Horizon_Steps, Embed_Dim]
-    #         action_embeds = self.joint_model(
-    #             attention_mask=action_mask,
-    #             position_ids_all={"action": action_position_ids},
-    #             embeds_all={"action": action_embeds},
-    #             time_cond=time_cond,
-    #             kv_caches=kv_caches,
-    #             cache_mode="append_non_active",  # use caches from other mixtures, i.e., vlm and proprio
-    #         )["action"]
-    #         # decode action: [Batch_Size, Horizon_Steps, Action_Dim]
-    #         action_vel = self.action_decoder(action_embeds)
-    #         action += delta_t * action_vel
-    #         t += delta_t
-
-    #     # clamp final output if specified
-    #     if self.final_action_clip_value is not None:
-    #         action = torch.clamp(
-    #             action,
-    #             -self.final_action_clip_value,
-    #             self.final_action_clip_value,
-    #         )
-    #     return action
-    # wx:Dynamic gate v0
     def infer_action(
         self,
         input_ids: torch.LongTensor,
@@ -700,31 +430,19 @@ class PiZero(nn.Module, NoSyncBase):
         proprio_position_ids: torch.LongTensor,
         action_position_ids: torch.LongTensor,
         proprios: torch.FloatTensor,
-        visual_gate: Optional[nn.Module] = None,
-        initial_action_noise: Optional[torch.Tensor] = None,
-        return_aux: bool = False,
-    ):
+    ) -> torch.FloatTensor:
         dtype, device = pixel_values.dtype, pixel_values.device
-        batch_size = pixel_values.size(0)
+        bsz = pixel_values.size(0)
 
         kv_caches = self.joint_model.build_mixture_caches()
 
-        embedding_output = self._forward_siglip_and_text_embedding(
-            input_ids=input_ids,
-            pixel_values=pixel_values,
-            proprios=proprios,
-            visual_gate=visual_gate,
-            return_visual_gate_info=return_aux,
-        )
+        # merge the text tokens and the image tokens
+        inputs_embeds = self._forward_siglip_and_text_embedding(input_ids, pixel_values)
 
-        if return_aux:
-            inputs_embeds, visual_gate_info = embedding_output
-        else:
-            inputs_embeds = embedding_output
-            visual_gate_info = None
-
+        # proprio
         proprio_embeds = self.proprio_encoder(proprios)
 
+        # forward pass thru the vlm and proprio, cache the kv
         _, kv_caches = self.joint_model(
             attention_mask=image_text_proprio_mask,
             position_ids_all={
@@ -739,139 +457,45 @@ class PiZero(nn.Module, NoSyncBase):
             return_caches=True,
         )
 
-        action = self._prepare_initial_action_noise(
-            initial_action_noise,
-            batch_size=batch_size,
-            device=device,
-            dtype=dtype,
+        # sample pure action noise
+        action = torch.randn(
+            (bsz, self.horizon_steps, self.action_dim), device=device, dtype=dtype
         )
 
-        used_initial_action_noise = (
-            action.detach().clone() if return_aux else None
-        )
-
+        # forward euler integration --- using kv caches of vlm and proprio
         delta_t = 1.0 / self.num_inference_steps
-        time = torch.zeros(
-            batch_size,
-            device=device,
-            dtype=dtype,
-        )
-
+        t = torch.zeros(bsz, device=device, dtype=dtype)
         for _ in range(self.num_inference_steps):
-            time_cond = self.time_embedding(time)
-
+            # encode action and time into embedding
+            time_cond = self.time_embedding(t)
+            # [Batch_Size, Horizon_Steps, Embed_Dim]
             if self.action_expert_adaptive_mode:
                 action_embeds = self.action_encoder(action)
             else:
-                action_embeds = self.action_encoder(
-                    action,
-                    time_cond,
-                )
-
+                action_embeds = self.action_encoder(action, time_cond)
+            # [Batch_Size, Horizon_Steps, Embed_Dim]
             action_embeds = self.joint_model(
                 attention_mask=action_mask,
-                position_ids_all={
-                    "action": action_position_ids
-                },
-                embeds_all={
-                    "action": action_embeds
-                },
+                position_ids_all={"action": action_position_ids},
+                embeds_all={"action": action_embeds},
                 time_cond=time_cond,
                 kv_caches=kv_caches,
-                cache_mode="append_non_active",
+                cache_mode="append_non_active",  # use caches from other mixtures, i.e., vlm and proprio
             )["action"]
+            # decode action: [Batch_Size, Horizon_Steps, Action_Dim]
+            action_vel = self.action_decoder(action_embeds)
+            action += delta_t * action_vel
+            t += delta_t
 
-            action_velocity = self.action_decoder(action_embeds)
-
-            # Use an out-of-place update so gradients can flow from the final
-            # action back through the frozen model into the external gate.
-            action = action + delta_t * action_velocity
-            time = time + delta_t
-
+        # clamp final output if specified
         if self.final_action_clip_value is not None:
             action = torch.clamp(
                 action,
                 -self.final_action_clip_value,
                 self.final_action_clip_value,
             )
-
-        if return_aux:
-            return action, {
-                "visual_gate": visual_gate_info,
-                "initial_action_noise": used_initial_action_noise,
-            }
-
         return action
-    # wx:Dynamic gate v0
 
-    # wx:Dynamic gate v0
-    # def infer_action_naive(
-    #     self,
-    #     input_ids: torch.LongTensor,
-    #     pixel_values: torch.FloatTensor,
-    #     causal_mask: torch.FloatTensor,
-    #     vlm_position_ids: torch.LongTensor,
-    #     proprio_position_ids: torch.LongTensor,
-    #     action_position_ids: torch.LongTensor,
-    #     proprios: torch.FloatTensor,
-    # ) -> torch.FloatTensor:
-    #     dtype, device = pixel_values.dtype, pixel_values.device
-    #     bsz = pixel_values.size(0)
-
-    #     kv_caches = self.joint_model.build_mixture_caches()
-
-    #     # merge the text tokens and the image tokens
-    #     inputs_embeds = self._forward_siglip_and_text_embedding(input_ids, pixel_values)
-
-    #     # encode proprio
-    #     proprio_embeds = self.proprio_encoder(proprios)
-
-    #     # sample pure action noise
-    #     action = torch.randn(
-    #         (bsz, self.horizon_steps, self.action_dim), device=device, dtype=dtype
-    #     )
-
-    #     # forward euler integration --- run vlm in each step, which is unnecessary
-    #     delta_t = 1.0 / self.num_inference_steps
-    #     t = torch.zeros(bsz, device=device, dtype=dtype)
-    #     for _ in range(self.num_inference_steps):
-    #         # encode action and time into embedding
-    #         time_cond = self.time_embedding(t)
-    #         # [Batch_Size, Horizon_Steps, Embed_Dim]
-    #         if self.action_expert_adaptive_mode:
-    #             action_embeds = self.action_encoder(action)
-    #         else:
-    #             action_embeds = self.action_encoder(action, time_cond)
-    #         action_embeds = self.joint_model(
-    #             attention_mask=causal_mask,
-    #             position_ids_all={
-    #                 "vlm": vlm_position_ids,
-    #                 "proprio": proprio_position_ids,
-    #                 "action": action_position_ids,
-    #             },
-    #             embeds_all={
-    #                 "vlm": inputs_embeds.clone(),  # clone needed due to modified in-place
-    #                 "proprio": proprio_embeds.clone(),
-    #                 "action": action_embeds,
-    #             },
-    #             time_cond=time_cond,
-    #             kv_caches=kv_caches,
-    #             cache_mode="no_append",  # no new tokens
-    #         )["action"]
-    #         # decode action: [Batch_Size, Horizon_Steps, Action_Dim]
-    #         action_vel = self.action_decoder(action_embeds)
-    #         action += delta_t * action_vel
-    #         t += delta_t
-
-    #     # clamp final output if specified
-    #     if self.final_action_clip_value is not None:
-    #         action = torch.clamp(
-    #             action,
-    #             -self.final_action_clip_value,
-    #             self.final_action_clip_value,
-    #         )
-    #     return action
-    # wx:Dynamic gate v0
     def infer_action_naive(
         self,
         input_ids: torch.LongTensor,
@@ -881,60 +505,34 @@ class PiZero(nn.Module, NoSyncBase):
         proprio_position_ids: torch.LongTensor,
         action_position_ids: torch.LongTensor,
         proprios: torch.FloatTensor,
-        visual_gate: Optional[nn.Module] = None,
-        initial_action_noise: Optional[torch.Tensor] = None,
-        return_aux: bool = False,
-    ):
+    ) -> torch.FloatTensor:
         dtype, device = pixel_values.dtype, pixel_values.device
-        batch_size = pixel_values.size(0)
+        bsz = pixel_values.size(0)
 
         kv_caches = self.joint_model.build_mixture_caches()
 
-        embedding_output = self._forward_siglip_and_text_embedding(
-            input_ids=input_ids,
-            pixel_values=pixel_values,
-            proprios=proprios,
-            visual_gate=visual_gate,
-            return_visual_gate_info=return_aux,
-        )
+        # merge the text tokens and the image tokens
+        inputs_embeds = self._forward_siglip_and_text_embedding(input_ids, pixel_values)
 
-        if return_aux:
-            inputs_embeds, visual_gate_info = embedding_output
-        else:
-            inputs_embeds = embedding_output
-            visual_gate_info = None
-
+        # encode proprio
         proprio_embeds = self.proprio_encoder(proprios)
 
-        action = self._prepare_initial_action_noise(
-            initial_action_noise,
-            batch_size=batch_size,
-            device=device,
-            dtype=dtype,
+        # sample pure action noise
+        action = torch.randn(
+            (bsz, self.horizon_steps, self.action_dim), device=device, dtype=dtype
         )
 
-        used_initial_action_noise = (
-            action.detach().clone() if return_aux else None
-        )
-
+        # forward euler integration --- run vlm in each step, which is unnecessary
         delta_t = 1.0 / self.num_inference_steps
-        time = torch.zeros(
-            batch_size,
-            device=device,
-            dtype=dtype,
-        )
-
+        t = torch.zeros(bsz, device=device, dtype=dtype)
         for _ in range(self.num_inference_steps):
-            time_cond = self.time_embedding(time)
-
+            # encode action and time into embedding
+            time_cond = self.time_embedding(t)
+            # [Batch_Size, Horizon_Steps, Embed_Dim]
             if self.action_expert_adaptive_mode:
                 action_embeds = self.action_encoder(action)
             else:
-                action_embeds = self.action_encoder(
-                    action,
-                    time_cond,
-                )
-
+                action_embeds = self.action_encoder(action, time_cond)
             action_embeds = self.joint_model(
                 attention_mask=causal_mask,
                 position_ids_all={
@@ -943,34 +541,27 @@ class PiZero(nn.Module, NoSyncBase):
                     "action": action_position_ids,
                 },
                 embeds_all={
-                    "vlm": inputs_embeds.clone(),
+                    "vlm": inputs_embeds.clone(),  # clone needed due to modified in-place
                     "proprio": proprio_embeds.clone(),
                     "action": action_embeds,
                 },
                 time_cond=time_cond,
                 kv_caches=kv_caches,
-                cache_mode="no_append",
+                cache_mode="no_append",  # no new tokens
             )["action"]
+            # decode action: [Batch_Size, Horizon_Steps, Action_Dim]
+            action_vel = self.action_decoder(action_embeds)
+            action += delta_t * action_vel
+            t += delta_t
 
-            action_velocity = self.action_decoder(action_embeds)
-            action = action + delta_t * action_velocity
-            time = time + delta_t
-
+        # clamp final output if specified
         if self.final_action_clip_value is not None:
             action = torch.clamp(
                 action,
                 -self.final_action_clip_value,
                 self.final_action_clip_value,
             )
-
-        if return_aux:
-            return action, {
-                "visual_gate": visual_gate_info,
-                "initial_action_noise": used_initial_action_noise,
-            }
-
         return action
-    # wx:Dynamic gate v0
 
     def infer_actions(
         self,

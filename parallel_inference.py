@@ -74,6 +74,9 @@ class ParallelRunner:
                  task='',
                  result_root='./results',
                  n_trajs=100,
+                 # wx:Dynamic gate v3
+                 episode_start=0,
+                 # wx:Dynamic gate v3
                  contrast=False,
                  opts=[],
                  # wx:Test-time adaptive mask selection
@@ -93,6 +96,9 @@ class ParallelRunner:
         self.task = task
         self.result_root = result_root
         self.n_trajs = n_trajs
+        # wx:Dynamic gate v3
+        self.episode_start = int(episode_start)
+        # wx:Dynamic gate v3
         self.contrast = contrast
         self.opts = parse_opts(opts)
         # wx:Test-time adaptive mask selection
@@ -141,7 +147,11 @@ class ParallelRunner:
             self.logger.info(f"CUDA_VISIBLE_DEVICES not set, auto-selected gpu_id={gpu_id}")
         # wx: 自定义GPU
         
-        episodes = range(self.n_trajs)
+        # wx:Dynamic gate v3
+        # episodes = range(self.n_trajs)
+        # wx:Dynamic gate v3
+        episodes = range(self.episode_start, self.episode_start + self.n_trajs,)
+        # wx:Dynamic gate v3
         infos = self.run_episodes(gpu_id, episodes, show_detail=True)
         info = stat_info(infos)
         self.logger.infos("Results", info)
@@ -170,7 +180,12 @@ class ParallelRunner:
         
         # start number of processes equal to number of GPUs
         processes = []
-        episodes_per_gpu = [list(range(i, self.n_trajs, len(gpu_ids))) for i, _ in enumerate(gpu_ids)]
+        # wx:Dynamic gate v3
+        # episodes_per_gpu = [list(range(i, self.n_trajs, len(gpu_ids))) for i, _ in enumerate(gpu_ids)]
+        # wx:Dynamic gate v3
+        all_episodes = list(range(self.episode_start, self.episode_start + self.n_trajs,))
+        episodes_per_gpu = [all_episodes[index::len(gpu_ids)] for index in range(len(gpu_ids))]
+        # wx:Dynamic gate v3
         for gpu_id, episodes in zip(gpu_ids, episodes_per_gpu):
             self.logger.info(f"Allocating episodes for GPU {gpu_id}: {episodes}.")
             process = multiprocessing.Process(target=self.run_episodes, 
@@ -308,7 +323,15 @@ class ParallelRunner:
             # get action from policy
             # only pi-0 use proprio
             if not self.contrast:
-                raw_action, actions = policy.step(image, instruction, proprio=obs['agent']['eef_pos'])
+                # wx:Dynamic gate v3
+                # raw_action, actions = policy.step(image, instruction, proprio=obs['agent']['eef_pos'])
+                # wx:Dynamic gate v3
+                use_deterministic_action_noise = bool(getattr(policy, "deterministic_action_noise", False,))
+                if (self.policy == "pizero" and use_deterministic_action_noise):
+                    raw_action, actions = policy.step(image, instruction, proprio=obs["agent"]["eef_pos"], task=self.task, episode_id=episode, query_index=query_index,)
+                else:
+                    raw_action, actions = policy.step(image, instruction, proprio=obs['agent']['eef_pos'])
+                # wx:Dynamic gate v3
             else:
                 raw_action, actions, aux_info = policy.step(image, contrast_image, instruction, proprio=obs['agent']['eef_pos'])
 
@@ -560,6 +583,10 @@ class ParallelRunner:
             "contrast": self.contrast,
             "opts_raw": self.raw_opts,
             "opts_parsed": self.opts,
+            # wx:Dynamic gate v3
+            "episode_start": self.episode_start,
+            "episode_end_exclusive": (self.episode_start + self.n_trajs),
+            # wx:Dynamic gate v3
         }
 
         config_path = osp.join(self.result_dir, "run_config.json")
@@ -692,6 +719,9 @@ def main(args):
                                       task=args.task,
                                       result_root=args.result_root,
                                       n_trajs=args.n_trajs,
+                                      # wx:Dynamic gate v3
+                                      episode_start=args.episode_start,
+                                      # wx:Dynamic gate v3
                                       contrast=args.contrast,
                                       opts=args.opts,
                                       # wx:Test-time adaptive mask selection
@@ -712,6 +742,9 @@ def main(args):
                                 task=args.task,
                                 result_root=args.result_root,
                                 n_trajs=args.n_trajs,
+                                # wx:Dynamic gate v3
+                                episode_start=args.episode_start,
+                                # wx:Dynamic gate v3
                                 contrast=args.contrast,
                                 opts=args.opts,
                                 # wx:Test-time adaptive mask selection
@@ -736,6 +769,9 @@ if __name__ == '__main__':
     parser.add_argument("--task", default="google_robot_pick_coke_can")
     parser.add_argument("--result-root", type=str, default="./results")
     parser.add_argument("--n-trajs", type=int, default=100)
+    # wx:Dynamic gate v3
+    parser.add_argument("--episode-start", type=int, default=0, help=("First environment episode/seed. " "Runs episode_start ... episode_start+n_trajs-1."),)
+    # wx:Dynamic gate v3
     parser.add_argument("--contrast", action="store_true")
     parser.add_argument("--opts", nargs="+", default=[])
     parser.add_argument("--search-opts", nargs="+", default=[])

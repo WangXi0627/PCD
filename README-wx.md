@@ -148,3 +148,67 @@ PCD/parallel_inference.py (修改)
 PCD/scripts/check_rollout_dataset.py (新增)
 PCD/.gitignore (修改)
 PCD/scripts/inference/wx_collect_data/* (新增)
+PCD/rollouts/* (rollouts存储位置)
+
+# Dynamic gate
+## v0：把动态Gate接入PiZero，并确保可微
+PCD/feature_gating/__init__.py (新增)
+PCD/feature_gating/dynamic_channel_gate.py (新增)
+PCD/simpler_env/policies/pizero/open_pi_zero/src/model/vla/pizero_0722.py (备份)
+PCD/simpler_env/policies/pizero/open_pi_zero/src/model/vla/pizero.py (修改)
+PCD/simpler_env/policies/pizero/pizero_model_0722.py (备份)
+PCD/simpler_env/policies/pizero/pizero_model.py (修改)
+PCD/scripts/smoke_test_pizero_dynamic_gate.py (新增)
+PCD/scripts/inference/wx_dynamic_gate/v0/* (新增)
+
+## v1：把Gate封装成可部署的闭环推理策略
+PCD/contrast_policies/pizero_dynamic_gate.py (新增)
+PCD/properties.py (修改)
+PCD/contrast_policies/__init__0722.py (备份)
+PCD/contrast_policies/__init__.py (修改)
+PCD/scripts/compare_rollout_episodes.py (新增)
+PCD/scripts/inference/wx_dynamic_gate/v1/* (新增)
+
+## v2：建立离线数据、固定噪声Teacher和训练基础设施
+PCD/feature_gating/checkpoint.py (新增)
+PCD/feature_gating/fixed_noise_teacher.py (新增)
+PCD/feature_gating/rollout_dataset.py (新增)
+PCD/feature_gating/split_utils.py (新增)
+PCD/feature_gating/training_step.py (新增)
+PCD/scripts/build_dynamic_gate_manifest.py (新增)
+PCD/scripts/check_dynamic_gate_dataset.py (新增)
+PCD/scripts/smoke_test_dynamic_gate_training.py (新增)
+PCD/scripts/inference/wx_dynamic_gate/v2/* (新增)
+PCD/checkpoints/dynamic_gate/* (ckps存储位置)
+
+## v3：训练无标签V1 Gate，并完成离线与闭环效果验证
+PCD/feature_gating/augmentations.py (新增)
+PCD/feature_gating/samplers.py (新增)
+PCD/feature_gating/teacher_cache.py (新增)
+PCD/feature_gating/v1_losses.py (新增)
+PCD/feature_gating/v1_training_step.py (新增)
+PCD/scripts/cache_fixed_noise_teacher.py (新增)
+PCD/scripts/evaluate_dynamic_gate_v1_offline.py (新增)
+PCD/scripts/train_dynamic_gate_v1.py (新增)
+PCD/scripts/inference/wx_dynamic_gate/v3/* (新增)
+PCD/properties.py (修改)
+PCD/simpler_env/policies/pizero/pizero_model.py (修改)
+PCD/contrast_policies/pizero_dynamic_gate.py (修改)
+PCD/parallel_inference.py (修改)
+PCD/teacher_cache/dynamic_gate/* (cache存储位置)
+
+```
+# 报错：TypeError: PiZeroInference.__init__() got an unexpected keyword argument 'deterministic_action_noise'
+PCD/parallel_inference.py (修改)
+
+# 报错：CUDA out of memory
+PCD/scripts/train_dynamic_gate_v1.py (修改)
+```
+
+## v3.5：加入去冗余损失，重写训练与评估脚本
+PCD/feature_gating/channel_redundancy.py (新增)
+PCD/feature_gating/redundancy_training_step.py (新增)
+PCD/scripts/build_channel_redundancy_cache.py (新增)
+PCD/scripts/evaluate_dynamic_gate_redundancy_offline.py (新增)
+PCD/scripts/train_dynamic_gate_redundancy.py (新增)
+PCD/scripts/inference/wx_dynamic_gate/v3.5/* (新增)

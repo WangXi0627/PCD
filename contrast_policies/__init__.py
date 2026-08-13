@@ -1,4 +1,4 @@
-# wx:Test-time learnable feature mask v1.0
+# wx:Dynamic gate v1
 RANDOM_MASK_KEYS = [
     "random_feature_mask",
     "mask_keep_ratio",
@@ -38,44 +38,114 @@ LEARNABLE_MASK_KEYS = [
     "learnable_reset_each_episode",
     "learnable_hard_topk_eval",
     "learnable_verbose",
-
-    # 如果你后面加了 early stop，也放进来
     "learnable_early_stop",
     "learnable_min_opt_steps",
     "learnable_loss_tol",
     "learnable_patience",
 ]
 
-def _pop_keys(config, keys):
-    config = dict(config)
-    for key in keys:
-        config.pop(key, None)
-    return config
+DYNAMIC_GATE_KEYS = [
+    "dynamic_feature_gate",
+    "dynamic_gate_mode",
+    "dynamic_gate_checkpoint",
+    "dynamic_gate_num_groups",
+    "dynamic_gate_hidden_dim",
+    "dynamic_gate_target_keep_ratio",
+    "dynamic_gate_temperature",
+    "dynamic_gate_rescale",
+    "dynamic_gate_checkpoint_strict",
+    "dynamic_gate_verbose",
+    "dynamic_gate_log_every",
+]
 
-def _pop_all_mask_keys(config):
-    return _pop_keys(
-        config,
-        RANDOM_MASK_KEYS + ADAPTIVE_MASK_KEYS + LEARNABLE_MASK_KEYS,
+FEATURE_INTERVENTION_KEYS = {
+    "random": RANDOM_MASK_KEYS,
+    "adaptive": ADAPTIVE_MASK_KEYS,
+    "learnable": LEARNABLE_MASK_KEYS,
+    "dynamic_gate": DYNAMIC_GATE_KEYS,
+}
+
+FEATURE_INTERVENTION_SWITCHES = {
+    "random": "random_feature_mask",
+    "adaptive": "adaptive_feature_mask",
+    "learnable": "learnable_feature_mask",
+    "dynamic_gate": "dynamic_feature_gate",
+}
+
+def _get_active_feature_interventions(config):
+    return [
+        mode_name
+        for mode_name, switch_name
+        in FEATURE_INTERVENTION_SWITCHES.items()
+        if bool(config.get(switch_name, False))
+    ]
+
+def _validate_feature_intervention_modes(
+    config,
+    *,
+    contrast=False,
+):
+    """
+    Enforce strict mutual exclusion between all PiZero feature
+    intervention modes.
+    """
+    active_modes = _get_active_feature_interventions(
+        config
     )
 
-def _pop_adaptive_and_learnable_keys(config):
-    return _pop_keys(
-        config,
-        ADAPTIVE_MASK_KEYS + LEARNABLE_MASK_KEYS,
-    )
+    if len(active_modes) > 1:
+        raise ValueError(
+            "PiZero feature intervention modes are mutually "
+            "exclusive. Enabled modes: "
+            f"{active_modes}"
+        )
 
-def _pop_random_and_learnable_keys(config):
-    return _pop_keys(
-        config,
-        RANDOM_MASK_KEYS + LEARNABLE_MASK_KEYS,
-    )
+    if contrast and active_modes:
+        raise ValueError(
+            "PiZero feature intervention wrappers currently "
+            "require contrast=False. "
+            f"Enabled mode: {active_modes[0]}"
+        )
 
-def _pop_random_and_adaptive_keys(config):
-    return _pop_keys(
-        config,
-        RANDOM_MASK_KEYS + ADAPTIVE_MASK_KEYS,
-    )
-# wx:Test-time learnable feature mask v1.0
+    return active_modes
+
+def _strip_feature_intervention_keys(
+    config,
+    *,
+    keep_mode=None,
+):
+    """
+    Remove configuration keys belonging to all feature intervention
+    modes except keep_mode.
+
+    keep_mode may be:
+    - None
+    - random
+    - adaptive
+    - learnable
+    - dynamic_gate
+    """
+    if (
+        keep_mode is not None
+        and keep_mode not in FEATURE_INTERVENTION_KEYS
+    ):
+        raise ValueError(
+            f"Unknown keep_mode={keep_mode!r}. "
+            f"Available modes: "
+            f"{list(FEATURE_INTERVENTION_KEYS)}"
+        )
+
+    cleaned = dict(config)
+
+    for mode_name, keys in FEATURE_INTERVENTION_KEYS.items():
+        if mode_name == keep_mode:
+            continue
+
+        for key in keys:
+            cleaned.pop(key, None)
+
+    return cleaned
+# wx:Dynamic gate v1
 
 def get_policy(policy, contrast, config):
     if policy == 'octo':
@@ -92,37 +162,45 @@ def get_policy(policy, contrast, config):
         else:
             from .openvla_contrast import OpenVLAContrastInference
             policy = OpenVLAContrastInference(**config)
-    elif policy == 'pizero':
-        # wx:Test-time learnable feature mask v1.0
-        if config.get("learnable_feature_mask", False):
-            print("[get_policy] Using PiZeroLearnableMaskInference")
+    # wx:Dynamic gate v1
+    elif policy == "pizero":
+        active_modes = _validate_feature_intervention_modes(config, contrast=contrast,)
+        active_mode = (active_modes[0] if active_modes else None)
+        if active_mode == "dynamic_gate":
+            print("[get_policy] Using "
+                  "PiZeroDynamicGateInference")
+            from .pizero_dynamic_gate import PiZeroDynamicGateInference
+            dynamic_config = (_strip_feature_intervention_keys(config, keep_mode="dynamic_gate",))
+            policy = PiZeroDynamicGateInference(**dynamic_config)
+        elif active_mode == "learnable":
+            print("[get_policy] Using "
+                  "PiZeroLearnableMaskInference")
             from .pizero_learnable_mask import PiZeroLearnableMaskInference
-            learnable_config = _pop_random_and_adaptive_keys(config)
+            learnable_config = (_strip_feature_intervention_keys(config, keep_mode="learnable",))
             policy = PiZeroLearnableMaskInference(**learnable_config)
-        # wx:Test-time learnable feature mask v1.0
-        # wx:Test-time adaptive mask selection
-        elif config.get("adaptive_feature_mask", False):
-            print("[get_policy] Using PiZeroAdaptiveMaskInference")
+        elif active_mode == "adaptive":
+            print("[get_policy] Using "
+                  "PiZeroAdaptiveMaskInference")
             from .pizero_adaptive_mask import PiZeroAdaptiveMaskInference
-            adaptive_config = _pop_random_and_learnable_keys(config)
+            adaptive_config = (_strip_feature_intervention_keys(config, keep_mode="adaptive",))
             policy = PiZeroAdaptiveMaskInference(**adaptive_config)
-        # wx:Test-time adaptive mask selection
-        # wx: motivation
-        elif config.get("random_feature_mask", False):
-            print("[get_policy] Using PiZeroRandomMaskInference")
+        elif active_mode == "random":
+            print("[get_policy] Using "
+                  "PiZeroRandomMaskInference")
             from .pizero_random_mask import PiZeroRandomMaskInference
-            random_config = _pop_adaptive_and_learnable_keys(config)
+            random_config = (_strip_feature_intervention_keys(config, keep_mode="random",))
             policy = PiZeroRandomMaskInference(**random_config)
         else:
-            print("[get_policy] Using original PiZeroInference / PiZeroContrastInference")
-            config = _pop_all_mask_keys(config)
-        # wx: motivation
+            print("[get_policy] Using original "
+                  "PiZeroInference / PiZeroContrastInference")
+            base_config = (_strip_feature_intervention_keys(config, keep_mode=None,))
             if not contrast:
                 from simpler_env.policies.pizero.pizero_model import PiZeroInference
-                policy = PiZeroInference(**config)
+                policy = PiZeroInference(**base_config)
             else:
                 from .pizero_contrast import PiZeroContrastInference
-                policy = PiZeroContrastInference(**config)
+                policy = PiZeroContrastInference(**base_config)
+    # wx:Dynamic gate v1
     # wx:集成GR00T-N1.6
     elif policy == 'groot':
         if not contrast:
