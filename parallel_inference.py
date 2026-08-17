@@ -43,16 +43,22 @@ class ParallelRunner:
                  checkpoint='',
                  task='',
                  result_root='./results',
+                 exp_name=None,  # wx:自定义结果文件夹名
                  n_trajs=100,
                  contrast=False,
+                 random_mask=False,   # wx:motivation-random mask
+                 save_gif=True,     # wx:自定义是否保存gif
                  opts=[]):
         self.num_gpus = num_gpus
         self.policy = policy
         self.checkpoint = checkpoint
         self.task = task
         self.result_root = result_root
+        self.exp_name = exp_name  # wx:自定义结果文件夹名
         self.n_trajs = n_trajs
         self.contrast = contrast
+        self.random_mask = random_mask   # wx:motivation-random mask
+        self.save_gif = save_gif    # wx:自定义是否保存gif
         self.opts = parse_opts(opts)
         
     def run(self):
@@ -71,7 +77,20 @@ class ParallelRunner:
         if not self._set_result_dir():
             return
         self._build_logger()
-        gpu_id = self._check_free_gpus()[0]
+
+        # wx:自定义GPU
+        # gpu_id = self._check_free_gpus()[0]
+        visible_gpus = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip()
+        if visible_gpus:
+            # In a CUDA_VISIBLE_DEVICES-restricted process,
+            # PyTorch sees the first visible GPU as cuda:0.
+            gpu_id = 0
+            self.logger.info(f"CUDA_VISIBLE_DEVICES={visible_gpus}, use logical cuda:{gpu_id}")
+        else:
+            gpu_id = self._check_free_gpus()[0]
+            self.logger.info(f"CUDA_VISIBLE_DEVICES not set, auto-selected gpu_id={gpu_id}")
+        # wx:自定义GPU
+
         episodes = range(self.n_trajs)
         infos = self.run_episodes(gpu_id, episodes, show_detail=True)
         info = stat_info(infos)
@@ -251,7 +270,11 @@ class ParallelRunner:
         info.update(stat_final(step_infos))
         success = info['success']
         self.logger.info(f"Episode {episode} finished with success {success}.")
-        write_video(frames, f"{self.result_dir}/episode_{episode}_success_{success}.gif")
+        # wx:自定义是否保存gif
+        # write_video(frames, f"{self.result_dir}/episode_{episode}_success_{success}.gif")
+        if self.save_gif:
+            write_video(frames, f"{self.result_dir}/episode_{episode}_success_{success}.gif")
+        # wx:自定义是否保存gif
         return info
     
     def build_episode(self, gpu_id, show_detail):
@@ -277,12 +300,25 @@ class ParallelRunner:
         others = self._build_others(show_detail)
         return env, policy, others
 
+    # wx:自定义GPU
+    # def _set_gpu(self, gpu_id):
+    #     """  Set GPU, it must be called before building policy. """
+    #     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    #     # list_physical devices can avoid cuda error, don't know why
+    #     import tensorflow as tf
+    #     tf.config.list_physical_devices("GPU")
+    # wx:自定义GPU
     def _set_gpu(self, gpu_id):
-        """  Set GPU, it must be called before building policy. """
+        visible_gpus = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip()
+        if visible_gpus:
+            self.logger.info(
+                f"Keep existing CUDA_VISIBLE_DEVICES={visible_gpus}; "
+                f"use logical cuda:{gpu_id}"
+            )
+            return
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-        # list_physical devices can avoid cuda error, don't know why
-        import tensorflow as tf
-        tf.config.list_physical_devices("GPU")
+        self.logger.info(f"Set CUDA_VISIBLE_DEVICES={gpu_id}")
+    # wx:自定义GPU
 
     def _build_environment(self, show_detail=False):
         """ Build environment. """
@@ -292,13 +328,19 @@ class ParallelRunner:
     def _build_policy(self, show_detail=False):
         """ Build policy model. """
         from properties import get_policy_config
-        config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast)
+        # wx:motivation-random mask
+        # config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast)
+        config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast, self.random_mask)
+        # wx:motivation-random mask
         
         if show_detail:
             self.logger.infos("Policy Config", config)
 
         from contrast_policies import get_policy
-        policy = get_policy(self.policy, self.contrast, config)
+        # wx:motivation-random mask
+        # policy = get_policy(self.policy, self.contrast, config)
+        policy = get_policy(self.policy, self.contrast, self.random_mask, config)
+        # wx:motivation-random mask
         
         reset_logging()
         self._build_logger(mode='a')
@@ -336,7 +378,13 @@ class ParallelRunner:
         # model_name = '/'.join(self.checkpoint.replace('\\', '/').split('/')[1:])
         model_name = self.checkpoint.replace('\\', '/').split('/')[-1]
         self.result_dir = osp.join(self.result_root, model_name)
-        if len(self.opts) > 0:
+
+        # wx:自定义结果文件夹名
+        if self.exp_name is not None:
+            self.result_dir = osp.join(self.result_dir, self.exp_name)
+        # if len(self.opts) > 0:
+        elif len(self.opts) > 0:
+        # wx:自定义结果文件夹名
             self.result_dir = osp.join(self.result_dir, '--'.join(f'{k}={v}' for k, v in self.opts.items()))
         self.result_dir = osp.join(self.result_dir, self.task)
         
@@ -406,8 +454,11 @@ def main(args):
                                       checkpoint=args.checkpoint,
                                       task=args.task,
                                       result_root=args.result_root,
+                                      exp_name=args.exp_name,     # wx:自定义结果文件夹名
                                       n_trajs=args.n_trajs,
                                       contrast=args.contrast,
+                                      random_mask=args.random_mask,   # wx:motivation-random mask
+                                      save_gif=args.save_gif,     # wx:自定义是否保存gif
                                       opts=args.opts)
     else:
         runner = ParallelRunner(num_gpus=args.num_gpus,
@@ -415,8 +466,11 @@ def main(args):
                                 checkpoint=args.checkpoint,
                                 task=args.task,
                                 result_root=args.result_root,
+                                exp_name=args.exp_name,     # wx:自定义结果文件夹名
                                 n_trajs=args.n_trajs,
                                 contrast=args.contrast,
+                                random_mask=args.random_mask,   # wx:motivation-random mask
+                                save_gif=args.save_gif,     # wx:自定义是否保存gif
                                 opts=args.opts)
     runner.run()
 
@@ -430,7 +484,10 @@ if __name__ == '__main__':
     parser.add_argument("--result-root", type=str, default="./results")
     parser.add_argument("--n-trajs", type=int, default=100)
     parser.add_argument("--contrast", action="store_true")
+    parser.add_argument("--random_mask", action="store_true")   # wx:motivation-random mask
     parser.add_argument("--opts", nargs="+", default=[])
     parser.add_argument("--search-opts", nargs="+", default=[])
+    parser.add_argument("--exp_name", type=str, default=None)    # wx:自定义结果文件夹名
+    parser.add_argument("--save-gif", action=argparse.BooleanOptionalAction, default=True)  # wx:自定义是否保存gif
     args = parser.parse_args()
     main(args)

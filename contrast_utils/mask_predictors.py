@@ -53,13 +53,21 @@ _NAME_TO_ALIAS_SED = {
 }
 
 _SAM2_MODEL_CFG = os.path.join('configs', 'sam2.1', 'sam2.1_hiera_l.yaml')
-_SAM2_CHECKPOINT = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'sam2.1_hiera_large.pt')
+# wx:复现
+# _SAM2_CHECKPOINT = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'sam2.1_hiera_large.pt')
+# wx:复现
+from pathlib import Path
+MODEL_ROOT = Path(os.environ.get("MODEL_ROOT", "/data/Xixixi/Model/PCD"))
+_SAM2_CHECKPOINT = MODEL_ROOT / "sam2.1_hiera_large.pt"
+# wx:复现
 
 _YOLO_WORLD_CFG = os.path.join(os.path.dirname(__file__), '..', 'third_party', 'yolo_world', 'configs', 'pretrain', 'yolo_world_v2_l_vlpan_bn_2e-3_100e_4x8gpus_obj365v1_goldg_train_lvis_minival.py')
 _YOLO_WORLD_CHECKPOINT = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'l_stage1-7d280586.pth')
 
-_GROUNDING_DINO_CHECKPOINT = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'grounding-dino-base')
-
+# wx:复现
+# _GROUNDING_DINO_CHECKPOINT = os.path.join(os.path.dirname(__file__), '..', 'pretrained', 'grounding-dino-base')
+_GROUNDING_DINO_CHECKPOINT = MODEL_ROOT / "grounding-dino"
+# wx:复现
 
 def my_print(*args):
     # get gpu id

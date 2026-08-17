@@ -33,7 +33,10 @@ OPENVLA_CONFIG = dict(
 )
 
 OPEN_PIZERO_CONFIG = dict(
-    cfg_dir='open_pi_zero/config/eval',
+    # wx:复现
+    # cfg_dir='open_pi_zero/config/eval',
+    cfg_dir='./simpler_env/policies/pizero/open_pi_zero/config/eval',
+    # wx:复现
     use_ddp=False,
     use_naive=False,
     use_torch_compile=True,
@@ -67,18 +70,36 @@ CONTRAST_OPEN_PIZERO_CONFIG = dict(
     keep_threshold=0.5,
 )
 
-def get_policy_config(policy, checkpoint, task, opts, contrast):
+# wx:motivation-random mask
+RANDOM_OPEN_PIZERO_CONFIG = dict(
+    random_feature_mask=True,
+    mask_keep_ratio=1.0,
+    mask_seed=0,
+    mask_rescale=False,
+    mask_target="multi_modal_projector",
+    mask_verbose=False,
+)
+# wx:motivation-random mask
+
+# wx:motivation-random mask
+# def get_policy_config(policy, checkpoint, task, opts, contrast):
+def get_policy_config(policy, checkpoint, task, opts, contrast, random_mask):
+    if contrast and random_mask:
+        raise ValueError(
+            "contrast and random mask cannot be enabled simultaneously."
+        )
+# wx:motivation-random mask
     if policy == 'rt1':
-        config = RT1_CONFIG
+        config = RT1_CONFIG.copy()
         config['saved_model_path'] = checkpoint
     elif policy == 'octo':
-        config = OCTO_CONFIG
+        config = OCTO_CONFIG.copy()
         config['model_type'] = checkpoint
     elif policy == 'openvla':
-        config = OPENVLA_CONFIG
+        config = OPENVLA_CONFIG.copy()
         config['saved_model_path'] = checkpoint
     elif policy == 'pizero':
-        config = OPEN_PIZERO_CONFIG
+        config = OPEN_PIZERO_CONFIG.copy()
         config['checkpoint_path'] = checkpoint
     else:
         raise NotImplementedError()
@@ -102,17 +123,32 @@ def get_policy_config(policy, checkpoint, task, opts, contrast):
             config.update(CONTRAST_OPEN_PIZERO_CONFIG)
         else:
             raise NotImplementedError()
+
+    # wx:motivation-random mask
+    elif random_mask:
+        if policy == 'pizero':
+            config.update(RANDOM_OPEN_PIZERO_CONFIG)
+        else:
+            raise NotImplementedError()
+    # wx:motivation-random mask
     
     # update opts
     for k, v in opts.items():
         if k in config:
             config[k] = v
+
+    # wx:motivation-random mask
+    # 动态 hook/method patch 与 torch.compile 不一定兼容；
+    # 放在 opts 后面，避免被 --opts 重新设置为 True
+    if random_mask:
+        config["use_torch_compile"] = False
+    # wx:motivation-random mask
     
     return config
 
 
 def get_contrast_image_generator_config(opts):
-    config = CONTRAST_IMAGE_CONFIG
+    config = CONTRAST_IMAGE_CONFIG.copy()
     for k, v in opts.items():
         if k in config:
             config[k] = v

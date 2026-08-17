@@ -52,7 +52,8 @@ class OpenDrawerInSceneEnv(CustomSceneEnv):
             ASSET_DIR / "real_inpainting/open_drawer_a0.png"
         )  # dummy path; to be replaced later
         ret["rgb_overlay_cameras"] = ["overhead_camera"]
-        ret["shader_dir"] = "rt"
+        # ret["shader_dir"] = "rt"
+        ret["shader_dir"] = "ibl"
         self.station_name = "mk_station_recolor"
         self.light_mode = "simple"
         ret["disable_bad_material"] = True
