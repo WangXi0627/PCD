@@ -47,6 +47,7 @@ class ParallelRunner:
                  n_trajs=100,
                  contrast=False,
                  random_mask=False,   # wx:motivation-random mask
+                 random_token_mask=False, # wx:motivation-random token mask
                  save_gif=True,     # wx:自定义是否保存gif
                  opts=[]):
         self.num_gpus = num_gpus
@@ -58,8 +59,24 @@ class ParallelRunner:
         self.n_trajs = n_trajs
         self.contrast = contrast
         self.random_mask = random_mask   # wx:motivation-random mask
+        self.random_token_mask = random_token_mask  # wx:motivation-random token mask
         self.save_gif = save_gif    # wx:自定义是否保存gif
         self.opts = parse_opts(opts)
+
+        # wx:motivation-random token mask
+        if sum(
+            bool(x)
+            for x in [
+                self.contrast,
+                self.random_mask,
+                self.random_token_mask,
+            ]
+        ) > 1:
+            raise ValueError(
+                "Only one of contrast, random_mask and "
+                "random_token_mask can be enabled."
+            )
+        # wx:motivation-random token mask
         
     def run(self):
         """
@@ -328,19 +345,27 @@ class ParallelRunner:
     def _build_policy(self, show_detail=False):
         """ Build policy model. """
         from properties import get_policy_config
-        # wx:motivation-random mask
-        # config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast)
-        config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast, self.random_mask)
-        # wx:motivation-random mask
+        # wx:motivation-random token mask
+        # # wx:motivation-random mask
+        # # config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast)
+        # config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast, self.random_mask)
+        # # wx:motivation-random mask
+        # wx:motivation-random token mask
+        config = get_policy_config(self.policy, self.checkpoint, self.task, self.opts, self.contrast, self.random_mask, self.random_token_mask,)
+        # wx:motivation-random token mask
         
         if show_detail:
             self.logger.infos("Policy Config", config)
 
         from contrast_policies import get_policy
-        # wx:motivation-random mask
-        # policy = get_policy(self.policy, self.contrast, config)
-        policy = get_policy(self.policy, self.contrast, self.random_mask, config)
-        # wx:motivation-random mask
+        # wx:motivation-random token mask
+        # # wx:motivation-random mask
+        # # policy = get_policy(self.policy, self.contrast, config)
+        # policy = get_policy(self.policy, self.contrast, self.random_mask, config)
+        # # wx:motivation-random mask
+        # wx:motivation-random token mask
+        policy = get_policy(self.policy, self.contrast, self.random_mask, config, random_token_mask=self.random_token_mask,)
+        # wx:motivation-random token mask
         
         reset_logging()
         self._build_logger(mode='a')
@@ -458,6 +483,7 @@ def main(args):
                                       n_trajs=args.n_trajs,
                                       contrast=args.contrast,
                                       random_mask=args.random_mask,   # wx:motivation-random mask
+                                      random_token_mask=args.random_token_mask,  # wx:motivation-random token mask
                                       save_gif=args.save_gif,     # wx:自定义是否保存gif
                                       opts=args.opts)
     else:
@@ -470,6 +496,7 @@ def main(args):
                                 n_trajs=args.n_trajs,
                                 contrast=args.contrast,
                                 random_mask=args.random_mask,   # wx:motivation-random mask
+                                random_token_mask=args.random_token_mask,  # wx:motivation-random token mask
                                 save_gif=args.save_gif,     # wx:自定义是否保存gif
                                 opts=args.opts)
     runner.run()
@@ -485,6 +512,7 @@ if __name__ == '__main__':
     parser.add_argument("--n-trajs", type=int, default=100)
     parser.add_argument("--contrast", action="store_true")
     parser.add_argument("--random_mask", action="store_true")   # wx:motivation-random mask
+    parser.add_argument("--random_token_mask", action="store_true") # wx:motivation-random token mask
     parser.add_argument("--opts", nargs="+", default=[])
     parser.add_argument("--search-opts", nargs="+", default=[])
     parser.add_argument("--exp_name", type=str, default=None)    # wx:自定义结果文件夹名

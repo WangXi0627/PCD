@@ -33,5 +33,22 @@ PCD/contrast_policies/__init__.py: random mask **改动**
 PCD/contrast_policies/pizero_random_mask.py: random mask **新增**
 PCD/parallel_inference.py: random mask **改动**
 PCD/properties.py: random mask **改动**
-PCD/scripts/wx-inference/motivation: random mask **新增**
+PCD/scripts/wx-inference/motivation/random_pizero_inference*.sh: random mask 运行脚本 **新增**
+PCD/scripts/wx-inference/motivation/collect_success_rate.py: random mask 结果统计脚本 **新增**
+PCD/scripts/wx-inference/motivation/random_pizero_inference_baseline.sh: baseline 对比脚本 **新增**
 PCD/scripts/wx-inference/motivation/collect_success_rate.py: pip install openpyxl
+
+# motivation-random mask 尺度对照实验
+PCD/contrast_policies/pizero_random_mask.py: 加入 mask mode **改动**
+PCD/properties.py: 加入 mask mode 控制参数 **改动**
+PCD/scripts/wx-inference/motivation/random_pizero_inference_scale_control*.sh: random mask 尺度对照实验运行脚本 **新增**
+
+# motivation-random token mask
+PCD/contrast_policies/__init__.py: random token mask **改动**
+PCD/contrast_policies/pizero_random_token_mask.py: random token mask **新增**
+PCD/parallel_inference.py: random token mask **改动**
+PCD/properties.py: random token mask **改动**
+PCD/scripts/wx-inference/motivation/random_token_pizero_inference*.sh: random token mask 运行脚本 **新增**
+
+# 专家数据准备
+见 /data/Xixixi/Dataset/tensorflow_datasets/README-wx.md

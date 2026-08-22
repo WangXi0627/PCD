@@ -20,8 +20,8 @@ checkpoint="${MODEL_ROOT}/open_pi_zero"
 
 # Mask设置
 mask_target="multi_modal_projector"
-num_mask_seeds=10
-master_seed=20260816
+num_mask_seeds=5
+master_seed=20260817
 
 tasks=(
     "google_robot_pick_coke_can"
@@ -39,16 +39,32 @@ keep_ratios=(
     # 0.99
     # 0.98
     # 0.97
-    0.95
-    0.9
-    0.85
-    0.8
-    0.75
-    0.7
-    0.65
-    0.6
-    0.55
-    0.5
+    # 0.95
+    0.94
+    0.93
+    0.92
+    0.91
+    # 0.9
+    0.89
+    0.88
+    0.87
+    0.86
+    # 0.85
+    0.84
+    0.83
+    0.82
+    0.81
+    # 0.8
+    0.79
+    0.78
+    0.77
+    0.76
+    # 0.75
+    # 0.7
+    # 0.65
+    # 0.6
+    # 0.55
+    # 0.5
 )
 
 # 使用 master_seed 生成可复现的不重复 mask seeds

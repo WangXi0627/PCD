@@ -76,19 +76,45 @@ RANDOM_OPEN_PIZERO_CONFIG = dict(
     mask_keep_ratio=1.0,
     mask_seed=0,
     mask_rescale=False,
+    mask_mode="mask",   # wx:motivation-random mask 尺度对照实验
     mask_target="multi_modal_projector",
     mask_verbose=False,
 )
 # wx:motivation-random mask
 
-# wx:motivation-random mask
-# def get_policy_config(policy, checkpoint, task, opts, contrast):
-def get_policy_config(policy, checkpoint, task, opts, contrast, random_mask):
-    if contrast and random_mask:
+# wx:motivation-random token mask
+RANDOM_TOKEN_OPEN_PIZERO_CONFIG = dict(
+    random_token_mask=True,
+    token_mask_keep_ratio=1.0,
+    token_mask_seed=0,
+    token_mask_mode="mask",     # norm_preserve scale_only
+    token_mask_eps=1e-6,
+    token_mask_target="multi_modal_projector",
+    token_mask_verbose=False,
+)
+# wx:motivation-random token mask
+
+# wx:motivation-random token mask
+# # wx:motivation-random mask
+# # def get_policy_config(policy, checkpoint, task, opts, contrast):
+# def get_policy_config(policy, checkpoint, task, opts, contrast, random_mask):
+#     if contrast and random_mask:
+#         raise ValueError(
+#             "contrast and random mask cannot be enabled simultaneously."
+#         )
+# # wx:motivation-random mask
+# wx:motivation-random token mask
+def get_policy_config(policy, checkpoint, task, opts, contrast, random_mask=False, random_token_mask=False,
+):
+    if sum(
+        bool(x)
+        for x in [contrast, random_mask, random_token_mask]
+    ) > 1:
         raise ValueError(
-            "contrast and random mask cannot be enabled simultaneously."
+            "contrast, channel mask and token mask "
+            "cannot be enabled simultaneously."
         )
-# wx:motivation-random mask
+# wx:motivation-random token mask
     if policy == 'rt1':
         config = RT1_CONFIG.copy()
         config['saved_model_path'] = checkpoint
@@ -128,9 +154,15 @@ def get_policy_config(policy, checkpoint, task, opts, contrast, random_mask):
     elif random_mask:
         if policy == 'pizero':
             config.update(RANDOM_OPEN_PIZERO_CONFIG)
+    # wx:motivation-random mask
+
+    # wx:motivation-random token mask
+    elif random_token_mask:
+        if policy == "pizero":
+            config.update(RANDOM_TOKEN_OPEN_PIZERO_CONFIG)
         else:
             raise NotImplementedError()
-    # wx:motivation-random mask
+    # wx:motivation-random token mask
     
     # update opts
     for k, v in opts.items():
@@ -140,7 +172,7 @@ def get_policy_config(policy, checkpoint, task, opts, contrast, random_mask):
     # wx:motivation-random mask
     # 动态 hook/method patch 与 torch.compile 不一定兼容；
     # 放在 opts 后面，避免被 --opts 重新设置为 True
-    if random_mask:
+    if random_mask or random_token_mask:    # wx:motivation-random token mask
         config["use_torch_compile"] = False
     # wx:motivation-random mask
     

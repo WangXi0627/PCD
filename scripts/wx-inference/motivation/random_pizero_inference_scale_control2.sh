@@ -20,8 +20,8 @@ checkpoint="${MODEL_ROOT}/open_pi_zero"
 
 # Mask设置
 mask_target="multi_modal_projector"
-num_mask_seeds=5
-master_seed=20260817
+num_mask_seeds=10
+master_seed=20260814
 
 tasks=(
     # "google_robot_pick_coke_can"
@@ -35,30 +35,38 @@ tasks=(
     # "google_robot_place_apple_in_closed_top_drawer"
 )
 
+mask_modes=(
+    "norm_preserve"
+    # "scale_only"
+)
+
+# 控制实验跑2个keep ratio：
+# 原实验提升较明显的一个比例；
+# 一个较强mask比例，例如0.5或0.75；
 keep_ratios=(
-    # 0.99
+    0.99
     # 0.98
     # 0.97
     # 0.95
-    0.94
-    0.93
-    0.92
-    0.91
+    # 0.94
+    # 0.93
+    # 0.92
+    # 0.91
     # 0.9
-    0.89
-    0.88
-    0.87
-    0.86
+    # 0.89
+    # 0.88
+    # 0.87
+    # 0.86
     # 0.85
-    0.84
-    0.83
-    0.82
-    0.81
+    # 0.84
+    # 0.83
+    # 0.82
+    # 0.81
     # 0.8
-    0.79
-    0.78
-    0.77
-    0.76
+    # 0.79
+    # 0.78
+    # 0.77
+    # 0.76
     # 0.75
     # 0.7
     # 0.65
@@ -95,40 +103,33 @@ echo "result_root=${result_root}"
 echo "============================================================"
 
 for task in "${tasks[@]}"; do
-    for keep_ratio in "${keep_ratios[@]}"; do
-        for mask_seed in "${mask_seeds[@]}"; do
+    for mask_mode in "${mask_modes[@]}"; do
+        for keep_ratio in "${keep_ratios[@]}"; do
+            for mask_seed in "${mask_seeds[@]}"; do
 
-            exp_name="target-${mask_target}/master_seed-${master_seed}/keep_ratio-${keep_ratio}/mask_seed-${mask_seed}"
+                exp_name="mask_mode-${mask_mode}/target-${mask_target}/master_seed-${master_seed}/keep_ratio-${keep_ratio}/mask_seed-${mask_seed}"
 
-            echo "------------------------------------------------------------"
-            echo "[MASK]"
-            echo "task=${task}"
-            echo "mask_target=${mask_target}"
-            echo "master_seed=${master_seed}"
-            echo "keep_ratio=${keep_ratio}"
-            echo "mask_seed=${mask_seed}"
-            echo "exp_name=${exp_name}"
-            echo "------------------------------------------------------------"
+                command=(
+                    python parallel_inference.py
+                    --num-gpus "${num_gpus}"
+                    --result-root "${result_root}"
+                    --exp_name "${exp_name}"
+                    --n-trajs "${n_trajs}"
+                    --policy "${policy}"
+                    --checkpoint "${checkpoint}"
+                    --task "${task}"
+                    --no-save-gif
+                    --random_mask
+                    --opts
+                    mask_keep_ratio "${keep_ratio}"
+                    mask_seed "${mask_seed}"
+                    mask_target "${mask_target}"
+                    mask_mode "${mask_mode}"
+                    mask_verbose False
+                )
 
-            command=(
-                python parallel_inference.py
-                --num-gpus "${num_gpus}"
-                --result-root "${result_root}"
-                --exp_name "${exp_name}"
-                --n-trajs "${n_trajs}"
-                --policy "${policy}"
-                --checkpoint "${checkpoint}"
-                --task "${task}"
-                --no-save-gif
-                --random_mask
-                --opts
-                mask_keep_ratio "${keep_ratio}"
-                mask_seed "${mask_seed}"
-                mask_target "${mask_target}"
-                mask_verbose False
-            )
-
-            CUDA_VISIBLE_DEVICES="${gpu_id}" "${command[@]}"
+                CUDA_VISIBLE_DEVICES="${gpu_id}" "${command[@]}"
+            done
         done
     done
 done
